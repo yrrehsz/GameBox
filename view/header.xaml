@@ -1,0 +1,69 @@
+<UserControl x:Class="GameStartMenu.Views.HeaderView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml">
+
+    <!-- Contenitore leggermente più scuro con bordo inferiore grigio scuro -->
+    <Border Background="#40000000"
+            BorderBrush="#4E111111"
+            BorderThickness="0,0,0,1"
+            CornerRadius="12,12,0,0"
+            Padding="24,16,24,16">
+
+        <Grid>
+            <Grid.ColumnDefinitions>
+                <!-- La barra di ricerca occupa circa metà larghezza -->
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+
+            <!-- 1. BARRA DI RICERCA A SINISTRA (Dimezzata) -->
+            <ui:TextBox x:Name="SearchBox"
+                        Grid.Column="0"
+                        MaxWidth="420"
+                        HorizontalAlignment="Stretch"
+                        VerticalAlignment="Center"
+                        PlaceholderText="Search games in your library..."
+                        Icon="{ui:SymbolIcon Search24}"
+                        ClearButtonEnabled="True"
+                        Margin="0,0,20,0"/>
+
+            <!-- 2. I 2 DROPDOWN MENU A DESTRA DELLA SEARCH BAR -->
+            <StackPanel Grid.Column="1"
+                        Orientation="Horizontal"
+                        VerticalAlignment="Center"
+                        HorizontalAlignment="Right">
+                
+                <TextBlock Text="Show:"
+                           Foreground="#AAFFFFFF"
+                           FontSize="12"
+                           VerticalAlignment="Center"
+                           Margin="0,0,6,0"/>
+                <ComboBox x:Name="CmbShowFilter"
+                          Width="150"
+                          Margin="0,0,14,0">
+                    <ComboBoxItem Content="All games" Tag="All"/>
+                    <ComboBoxItem Content="Installed games" Tag="Executable"/>
+                    <ComboBoxItem Content="100% completed" Tag="Completed100"/>
+                    <ComboBoxItem Content="Steam games" Tag="Steam"/>
+                    <ComboBoxItem Content="PlayStation games" Tag="PlayStation"/>
+                    <ComboBoxItem Content="Xbox games" Tag="Xbox"/>
+                </ComboBox>
+
+                <TextBlock Text="Order by:"
+                           Foreground="#AAFFFFFF"
+                           FontSize="12"
+                           VerticalAlignment="Center"
+                           Margin="0,0,6,0"/>
+                <ComboBox x:Name="CmbOrderBy"
+                          Width="165">
+                    <ComboBoxItem Content="Default" Tag="Default"/>
+                    <ComboBoxItem Content="Alphabetical order (A-Z)" Tag="Alphabetical"/>
+                    <ComboBoxItem Content="100% completion" Tag="Platinums"/>
+                    <ComboBoxItem Content="Completion percentage" Tag="CompletionPct"/>
+                </ComboBox>
+            </StackPanel>
+        </Grid>
+
+    </Border>
+</UserControl>

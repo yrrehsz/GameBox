@@ -1,0 +1,376 @@
+<UserControl x:Class="GameStartMenu.Views.LibraryGridView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml">
+
+    <ScrollViewer VerticalScrollBarVisibility="Auto"
+                  HorizontalScrollBarVisibility="Disabled"
+                  Margin="14,6,6,6"
+                  Padding="0,0,8,0">
+        <ItemsControl x:Name="GamesGridControl">
+            <ItemsControl.ItemsPanel>
+                <ItemsPanelTemplate>
+                    <WrapPanel Orientation="Horizontal"
+                               HorizontalAlignment="Left"/>
+                </ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+
+            <ItemsControl.ItemTemplate>
+                <DataTemplate>
+                    <StackPanel Width="140"
+                                Margin="8,8,8,12"
+                                Panel.ZIndex="0">
+
+                        <!-- 1. COPERTINA DEL GIOCO (140x210) CON EFFETTO STEAM GLOSSY & HOVER -->
+                        <Border x:Name="CardBorder"
+                                Width="140"
+                                Height="210"
+                                CornerRadius="0"
+                                Background="#1E1E1E"
+                                BorderBrush="#26FFFFFF"
+                                BorderThickness="0"
+                                ClipToBounds="True"
+                                ToolTip="{Binding DisplayTitle}"
+                                RenderTransformOrigin="0.5,0.5"
+                                MouseMove="CardBorder_MouseMove"
+                                MouseLeave="CardBorder_MouseLeave">
+
+                            <!-- Trasformazione per Zoom + Sollevamento della Card -->
+                            <Border.RenderTransform>
+                                <TransformGroup>
+                                    <ScaleTransform x:Name="CardScale"
+                                                    ScaleX="1.0"
+                                                    ScaleY="1.0"/>
+                                    <TranslateTransform x:Name="CardTranslate"
+                                                        Y="0"/>
+                                </TransformGroup>
+                            </Border.RenderTransform>
+
+                            <!-- Ombra esterna che si intensifica in Hover -->
+                            <Border.Effect>
+                                <DropShadowEffect x:Name="CardShadow"
+                                                  BlurRadius="10"
+                                                  ShadowDepth="3"
+                                                  Direction="270"
+                                                  Color="Black"
+                                                  Opacity="0"/>
+                            </Border.Effect>
+
+                            <!-- Trigger di animazione quando il mouse entra ed esce dalla copertina -->
+                            <Border.Triggers>
+                                <EventTrigger RoutedEvent="MouseEnter">
+                                    <BeginStoryboard>
+                                        <Storyboard>
+                                            <!-- Leggero Zoom della card (1.0 -> 1.05) -->
+                                            <DoubleAnimation Storyboard.TargetName="CardScale"
+                                                             Storyboard.TargetProperty="ScaleX"
+                                                             To="1.05"
+                                                             Duration="0:0:0.18">
+                                                <DoubleAnimation.EasingFunction>
+                                                    <CubicEase EasingMode="EaseOut"/>
+                                                </DoubleAnimation.EasingFunction>
+                                            </DoubleAnimation>
+                                            <DoubleAnimation Storyboard.TargetName="CardScale"
+                                                             Storyboard.TargetProperty="ScaleY"
+                                                             To="1.05"
+                                                             Duration="0:0:0.18">
+                                                <DoubleAnimation.EasingFunction>
+                                                    <CubicEase EasingMode="EaseOut"/>
+                                                </DoubleAnimation.EasingFunction>
+                                            </DoubleAnimation>
+
+                                            <!-- Sollevamento verso l'alto (-4px) -->
+                                            <DoubleAnimation Storyboard.TargetName="CardTranslate"
+                                                             Storyboard.TargetProperty="Y"
+                                                             To="-4"
+                                                             Duration="0:0:0.18">
+                                                <DoubleAnimation.EasingFunction>
+                                                    <CubicEase EasingMode="EaseOut"/>
+                                                </DoubleAnimation.EasingFunction>
+                                            </DoubleAnimation>
+
+                                            <!-- Comparsa del riflesso Glossy -->
+                                            <DoubleAnimation Storyboard.TargetName="GlossyOverlay"
+                                                             Storyboard.TargetProperty="Opacity"
+                                                             To="1.0"
+                                                             Duration="0:0:0.15"/>
+                                        </Storyboard>
+                                    </BeginStoryboard>
+                                </EventTrigger>
+
+                                <EventTrigger RoutedEvent="MouseLeave">
+                                    <BeginStoryboard>
+                                        <Storyboard>
+                                            <!-- Ritorno a dimensione normale -->
+                                            <DoubleAnimation Storyboard.TargetName="CardScale"
+                                                             Storyboard.TargetProperty="ScaleX"
+                                                             To="1.0"
+                                                             Duration="0:0:0.2">
+                                                <DoubleAnimation.EasingFunction>
+                                                    <CubicEase EasingMode="EaseOut"/>
+                                                </DoubleAnimation.EasingFunction>
+                                            </DoubleAnimation>
+                                            <DoubleAnimation Storyboard.TargetName="CardScale"
+                                                             Storyboard.TargetProperty="ScaleY"
+                                                             To="1.0"
+                                                             Duration="0:0:0.2">
+                                                <DoubleAnimation.EasingFunction>
+                                                    <CubicEase EasingMode="EaseOut"/>
+                                                </DoubleAnimation.EasingFunction>
+                                            </DoubleAnimation>
+
+                                            <DoubleAnimation Storyboard.TargetName="CardTranslate"
+                                                             Storyboard.TargetProperty="Y"
+                                                             To="0"
+                                                             Duration="0:0:0.2">
+                                                <DoubleAnimation.EasingFunction>
+                                                    <CubicEase EasingMode="EaseOut"/>
+                                                </DoubleAnimation.EasingFunction>
+                                            </DoubleAnimation>
+
+                                            <!-- Dissolvenza del riflesso Glossy -->
+                                            <DoubleAnimation Storyboard.TargetName="GlossyOverlay"
+                                                             Storyboard.TargetProperty="Opacity"
+                                                             To="0.0"
+                                                             Duration="0:0:0.25"/>
+                                        </Storyboard>
+                                    </BeginStoryboard>
+                                </EventTrigger>
+                            </Border.Triggers>
+
+                            <!-- Stile per illuminare il bordo sottile in Hover -->
+                            <Border.Style>
+                                <Style TargetType="Border">
+                                    <Style.Triggers>
+                                        <Trigger Property="IsMouseOver"
+                                                 Value="True">
+                                            <Setter Property="BorderBrush"
+                                                    Value="#88A8D8FF"/>
+                                        </Trigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Border.Style>
+
+                            <Grid ClipToBounds="True">
+                                <!-- Titolo di fallback se manca la cover -->
+                                <TextBlock Text="{Binding DisplayTitle}"
+                                           Foreground="#88FFFFFF"
+                                           FontSize="12"
+                                           FontWeight="SemiBold"
+                                           TextWrapping="Wrap"
+                                           TextAlignment="Center"
+                                           VerticalAlignment="Center"
+                                           HorizontalAlignment="Center"
+                                           Margin="10"/>
+
+                                <!-- Immagine di Copertina 600x900 -->
+                                <Image Source="{Binding CoverImage}"
+                                       Stretch="UniformToFill"
+                                       RenderOptions.BitmapScalingMode="HighQuality"/>
+
+                                <!-- STRATO GLOSSY / RIFLESSO DI LUCE DINAMICO STILE STEAM -->
+                                <Canvas IsHitTestVisible="False"
+                                        ClipToBounds="True">
+                                    <Rectangle x:Name="GlossyOverlay"
+                                               Width="260"
+                                               Height="320"
+                                               Canvas.Left="-60"
+                                               Canvas.Top="-180"
+                                               Opacity="0"
+                                               RenderTransformOrigin="0.5,0.5">
+                                        <Rectangle.RenderTransform>
+                                            <TransformGroup>
+                                                <RotateTransform Angle="-28"/>
+                                                <TranslateTransform x:Name="GlossTranslate"
+                                                                    X="0"
+                                                                    Y="0"/>
+                                            </TransformGroup>
+                                        </Rectangle.RenderTransform>
+                                        <Rectangle.Fill>
+                                            <LinearGradientBrush StartPoint="0,0"
+                                                                 EndPoint="0,1">
+                                                <GradientStop Color="#00FFFFFF"
+                                                              Offset="0.0"/>
+                                                <GradientStop Color="#08FFFFFF"
+                                                              Offset="0.35"/>
+                                                <GradientStop Color="#38FFFFFF"
+                                                              Offset="0.50"/>
+                                                <GradientStop Color="#08FFFFFF"
+                                                              Offset="0.65"/>
+                                                <GradientStop Color="#00FFFFFF"
+                                                              Offset="1.0"/>
+                                            </LinearGradientBrush>
+                                        </Rectangle.Fill>
+                                    </Rectangle>
+                                </Canvas>
+
+                                <!-- CONTENITORE PULSANTI DI AVVIO IN BASSO (In colonna) -->
+                                <StackPanel Orientation="Vertical"
+                                            HorizontalAlignment="Right"
+                                            VerticalAlignment="Bottom"
+                                            Margin="0,0,6,6">
+
+                                    <!-- PULSANTE PLAY MODDED / EMULATORE -->
+                                    <Button Visibility="{Binding ModButtonVisibility}"
+                                            Cursor="Hand"
+                                            Margin="0,0,0,5"
+                                            Width="34"
+                                            Height="34"
+                                            ToolTip="{Binding ModDisplayName}"
+                                            Tag="{Binding}"
+                                            Click="BtnPlayModded_Click"
+                                            RenderTransformOrigin="0.5,0.5">
+                                        <Button.RenderTransform>
+                                            <ScaleTransform x:Name="ModBtnScale" ScaleX="1.0" ScaleY="1.0"/>
+                                        </Button.RenderTransform>
+
+                                        <!-- Template circolare puro con colore Hover personalizzato -->
+                                        <Button.Template>
+                                            <ControlTemplate TargetType="Button">
+                                                <Border x:Name="BtnBorder"
+                                                        CornerRadius="17"
+                                                        Background="#CC181818"
+                                                        BorderBrush="#33FFFFFF"
+                                                        BorderThickness="0">
+                                                    <ContentPresenter HorizontalAlignment="Center"
+                                                                      VerticalAlignment="Center"/>
+                                                </Border>
+                                                <ControlTemplate.Triggers>
+                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                        <!-- Cambia qui il colore di Hover! -->
+                                                        <Setter TargetName="BtnBorder" Property="Background" Value="#FF2C3E50"/>
+                                                        <Setter TargetName="BtnBorder" Property="BorderBrush" Value="#88FFFFFF"/>
+                                                    </Trigger>
+                                                </ControlTemplate.Triggers>
+                                            </ControlTemplate>
+                                        </Button.Template>
+
+                                        <!-- Icona Chiave Inglese (Cambia FontSize per ingrandirla) -->
+                                        <ui:SymbolIcon Symbol="Wrench24"
+                                                       FontSize="16"
+                                                       Foreground="White"/>
+
+                                        <Button.Triggers>
+                                            <EventTrigger RoutedEvent="MouseEnter">
+                                                <BeginStoryboard>
+                                                    <Storyboard>
+                                                        <DoubleAnimation Storyboard.TargetName="ModBtnScale" Storyboard.TargetProperty="ScaleX" To="1.1" Duration="0:0:0.16"/>
+                                                        <DoubleAnimation Storyboard.TargetName="ModBtnScale" Storyboard.TargetProperty="ScaleY" To="1.1" Duration="0:0:0.16"/>
+                                                    </Storyboard>
+                                                </BeginStoryboard>
+                                            </EventTrigger>
+                                            <EventTrigger RoutedEvent="MouseLeave">
+                                                <BeginStoryboard>
+                                                    <Storyboard>
+                                                        <DoubleAnimation Storyboard.TargetName="ModBtnScale" Storyboard.TargetProperty="ScaleX" To="1.0" Duration="0:0:0.16"/>
+                                                        <DoubleAnimation Storyboard.TargetName="ModBtnScale" Storyboard.TargetProperty="ScaleY" To="1.0" Duration="0:0:0.16"/>
+                                                    </Storyboard>
+                                                </BeginStoryboard>
+                                            </EventTrigger>
+                                        </Button.Triggers>
+                                    </Button>
+
+                                    <!-- PULSANTE PLAY STANDARD -->
+                                    <Button Visibility="{Binding PlayButtonVisibility}"
+                                            Cursor="Hand"
+                                            Width="34"
+                                            Height="34"
+                                            ToolTip="Avvia gioco"
+                                            Tag="{Binding}"
+                                            Click="BtnPlayGame_Click"
+                                            RenderTransformOrigin="0.5,0.5">
+                                        <Button.RenderTransform>
+                                            <ScaleTransform x:Name="PlayBtnScale" ScaleX="1.0" ScaleY="1.0"/>
+                                        </Button.RenderTransform>
+
+                                        <!-- Template circolare puro con colore Hover personalizzato -->
+                                        <Button.Template>
+                                            <ControlTemplate TargetType="Button">
+                                                <Border x:Name="BtnBorder"
+                                                        CornerRadius="17"
+                                                        Background="#CC181818"
+                                                        BorderBrush="#33FFFFFF"
+                                                        BorderThickness="0">
+                                                    <ContentPresenter HorizontalAlignment="Center"
+                                                                      VerticalAlignment="Center"/>
+                                                </Border>
+                                                <ControlTemplate.Triggers>
+                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                        <!-- Cambia qui il colore di Hover! -->
+                                                        <Setter TargetName="BtnBorder" Property="Background" Value="#FF2C3E50"/>
+                                                        <Setter TargetName="BtnBorder" Property="BorderBrush" Value="#88FFFFFF"/>
+                                                    </Trigger>
+                                                </ControlTemplate.Triggers>
+                                            </ControlTemplate>
+                                        </Button.Template>
+
+                                        <!-- Icona Play (Cambia FontSize per ingrandirla) -->
+                                        <ui:SymbolIcon Symbol="Play24"
+                                                       FontSize="16"
+                                                       Foreground="White"/>
+
+                                        <Button.Triggers>
+                                            <EventTrigger RoutedEvent="MouseEnter">
+                                                <BeginStoryboard>
+                                                    <Storyboard>
+                                                        <DoubleAnimation Storyboard.TargetName="PlayBtnScale" Storyboard.TargetProperty="ScaleX" To="1.1" Duration="0:0:0.16"/>
+                                                        <DoubleAnimation Storyboard.TargetName="PlayBtnScale" Storyboard.TargetProperty="ScaleY" To="1.1" Duration="0:0:0.16"/>
+                                                    </Storyboard>
+                                                </BeginStoryboard>
+                                            </EventTrigger>
+                                            <EventTrigger RoutedEvent="MouseLeave">
+                                                <BeginStoryboard>
+                                                    <Storyboard>
+                                                        <DoubleAnimation Storyboard.TargetName="PlayBtnScale" Storyboard.TargetProperty="ScaleX" To="1.0" Duration="0:0:0.16"/>
+                                                        <DoubleAnimation Storyboard.TargetName="PlayBtnScale" Storyboard.TargetProperty="ScaleY" To="1.0" Duration="0:0:0.16"/>
+                                                    </Storyboard>
+                                                </BeginStoryboard>
+                                            </EventTrigger>
+                                        </Button.Triggers>
+                                    </Button>
+
+                                </StackPanel>
+                            </Grid>
+                        </Border>
+
+                        <!-- 2. BARRA ICONE COMPLETAMENTO SOTTO LA COVER -->
+                        <Border Background="Transparent"
+                                BorderBrush="Transparent"
+                                BorderThickness="0"
+                                CornerRadius="0"
+                                Padding="6,6"
+                                Margin="0,5,0,0"
+                                HorizontalAlignment="Center">
+                            <StackPanel Orientation="Horizontal"
+                                        HorizontalAlignment="Center">
+                                <Image Source="{Binding SteamRankIcon}"
+                                       Visibility="{Binding SteamBadgeVisibility}"
+                                       ToolTip="{Binding SteamTooltip}"
+                                       Width="23"
+                                       Height="23"
+                                       Margin="5,0"
+                                       RenderOptions.BitmapScalingMode="HighQuality"/>
+
+                                <Image Source="{Binding PsRankIcon}"
+                                       Visibility="{Binding PsBadgeVisibility}"
+                                       ToolTip="{Binding PsTooltip}"
+                                       Width="22"
+                                       Height="22"
+                                       Margin="5,0"
+                                       RenderOptions.BitmapScalingMode="HighQuality"/>
+
+                                <Image Source="{Binding XboxRankIcon}"
+                                       Visibility="{Binding XboxBadgeVisibility}"
+                                       ToolTip="{Binding XboxTooltip}"
+                                       Width="23"
+                                       Height="23"
+                                       Margin="5,0"
+                                       RenderOptions.BitmapScalingMode="HighQuality"/>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+                </DataTemplate>
+            </ItemsControl.ItemTemplate>
+        </ItemsControl>
+    </ScrollViewer>
+</UserControl>
