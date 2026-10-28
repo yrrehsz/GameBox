@@ -23,8 +23,11 @@ namespace GameStartMenu
         private double _anchorX = -1;
         private bool _isInitializing = true;
 
-        private readonly ControllerDetector _controllerDetector = new ControllerDetector();
+        
         private readonly GameLibraryService _libraryService = new GameLibraryService();
+        private readonly ControllerDetector _controllerDetector;
+
+        private SettingsWindow? _settingsWindow;
 
         [DllImport("user32.dll")]
         private static extern bool GetCursorPos(out POINT lpPoint);
@@ -58,6 +61,7 @@ namespace GameStartMenu
         public MainWindow()
         {
             InitializeComponent();
+            _controllerDetector = new ControllerDetector(_libraryService.Config.ControllerIcons);
             AvviaAscoltoSegnali();
 
             _controllerDetector.OnControllersChanged += AggiornaUIController;
@@ -65,26 +69,35 @@ namespace GameStartMenu
             _libraryService.OnLibraryUpdated += AggiornaGrigliaGiochi;
             _libraryService.LoadCacheAndLocalGames();
 
-            // 1. Eventi Header
-            SelezionaComboPerTag(MyHeaderView.CmbShowFilter, _libraryService.Config.ShowFilter);
-            SelezionaComboPerTag(MyHeaderView.CmbOrderBy, _libraryService.Config.OrderBy);
-            MyHeaderView.SearchBox.TextChanged += SearchBox_TextChanged;
-            MyHeaderView.CmbShowFilter.SelectionChanged += FilterOrSort_SelectionChanged;
-            MyHeaderView.CmbOrderBy.SelectionChanged += FilterOrSort_SelectionChanged;
+            _libraryService.Config.ControllerIcons["TEST_XBOX_ID"] = "pack://application:,,,/assets/controllers/xbox/special/fh5.png";
+_libraryService.Config.Save();
 
-            // 2. Eventi Griglia
-            MyLibraryGridView.OnPlayGameRequested += AvviaGioco;
-            MyLibraryGridView.OnPlayModdedRequested += AvviaGiocoModdato;
+            // Header events
+            SelezionaComboPerTag(HeaderView.CmbShowFilter, _libraryService.Config.ShowFilter);
+            SelezionaComboPerTag(HeaderView.CmbOrderBy, _libraryService.Config.OrderBy);
+            HeaderView.SearchBox.TextChanged += SearchBox_TextChanged;
+            HeaderView.CmbShowFilter.SelectionChanged += FilterOrSort_SelectionChanged;
+            HeaderView.CmbOrderBy.SelectionChanged += FilterOrSort_SelectionChanged;
 
-            // 3. Eventi Footer
-            MyFooterView.BtnSync.Click += BtnSync_Click;
-            MyFooterView.BtnPinTaskbar.Click += BtnPinInfo_Click;
-            MyFooterView.BtnSettings.Click += BtnSettings_Click;
-            MyFooterView.BtnClose.Click += BtnEsci_Click;
+            // Library events
+            LibraryView.OnPlayGameRequested += AvviaGioco;
+            LibraryView.OnPlayModdedRequested += AvviaGiocoModdato;
+
+            
+
+            // Footer events
+            FooterView.BtnSync.Click += BtnSync_Click;
+            FooterView.BtnPinTaskbar.Click += BtnPinInfo_Click;
+            FooterView.BtnSettings.Click += BtnSettings_Click;
+            FooterView.BtnClose.Click += BtnEsci_Click;
+
+            // Controller events
+            FooterView.OnIdentifyRequested += async (ctrl) => await _controllerDetector.IdentifyControllerAsync(ctrl);
+            FooterView.OnTurnOffRequested += (ctrl) => _controllerDetector.TurnOffController(ctrl);
 
             _isInitializing = false;
 
-            _ = _libraryService.SyncCloudIfNeededAsync(force: false);
+            _ = _libraryService.SyncCloudIfNeededAsync(force: false, isStartup: true);
         }
 
         protected override void OnSourceInitialized(EventArgs e)
@@ -308,14 +321,14 @@ class Program {{
             {
                 if (controllers.Count == 0)
                 {
-                    MyFooterView.NoControllerBadge.Visibility = Visibility.Visible;
-                    MyFooterView.ControllersList.Visibility = Visibility.Collapsed;
+                    FooterView.NoControllerBadge.Visibility = Visibility.Visible;
+                    FooterView.ControllersList.Visibility = Visibility.Collapsed;
                 }
                 else
                 {
-                    MyFooterView.NoControllerBadge.Visibility = Visibility.Collapsed;
-                    MyFooterView.ControllersList.ItemsSource = controllers;
-                    MyFooterView.ControllersList.Visibility = Visibility.Visible;
+                    FooterView.NoControllerBadge.Visibility = Visibility.Collapsed;
+                    FooterView.ControllersList.ItemsSource = controllers;
+                    FooterView.ControllersList.Visibility = Visibility.Visible;
                 }
             });
         }
@@ -343,8 +356,8 @@ class Program {{
         {
             Dispatcher.Invoke(() =>
             {
-                MyLibraryGridView.GamesGridControl.ItemsSource = null;
-                MyLibraryGridView.GamesGridControl.ItemsSource = games;
+                LibraryView.GamesGridControl.ItemsSource = null;
+                LibraryView.GamesGridControl.ItemsSource = games;
             });
         }
 
@@ -393,15 +406,15 @@ class Program {{
         private void SearchBox_TextChanged(object sender, System.Windows.Controls.TextChangedEventArgs e)
         {
             if (_isInitializing) return;
-            _libraryService.SetSearchQuery(MyHeaderView.SearchBox.Text);
+            _libraryService.SetSearchQuery(HeaderView.SearchBox.Text);
         }
 
         private void FilterOrSort_SelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
         {
-            if (_isInitializing || MyHeaderView?.CmbShowFilter == null || MyHeaderView?.CmbOrderBy == null) return;
+            if (_isInitializing || HeaderView?.CmbShowFilter == null || HeaderView?.CmbOrderBy == null) return;
 
-            string showTag = (MyHeaderView.CmbShowFilter.SelectedItem as System.Windows.Controls.ComboBoxItem)?.Tag?.ToString() ?? "All";
-            string orderTag = (MyHeaderView.CmbOrderBy.SelectedItem as System.Windows.Controls.ComboBoxItem)?.Tag?.ToString() ?? "Default";
+            string showTag = (HeaderView.CmbShowFilter.SelectedItem as System.Windows.Controls.ComboBoxItem)?.Tag?.ToString() ?? "All";
+            string orderTag = (HeaderView.CmbOrderBy.SelectedItem as System.Windows.Controls.ComboBoxItem)?.Tag?.ToString() ?? "Default";
 
             _libraryService.UpdateViewSettings(showTag, orderTag);
         }
@@ -446,7 +459,7 @@ class Program {{
 
         private async void BtnSync_Click(object sender, RoutedEventArgs e)
         {
-            MyFooterView.BtnSync.IsEnabled = false;
+            FooterView.BtnSync.IsEnabled = false;
 
             // Avvia l'animazione di rotazione continua sull'icona Sync
             var spinAnimation = new DoubleAnimation
@@ -456,12 +469,13 @@ class Program {{
                 Duration = TimeSpan.FromMilliseconds(850),
                 RepeatBehavior = RepeatBehavior.Forever
             };
-            MyFooterView.SyncRotateTransform.BeginAnimation(RotateTransform.AngleProperty, spinAnimation);
+            FooterView.SyncRotateTransform.BeginAnimation(RotateTransform.AngleProperty, spinAnimation);
 
             try
             {
                 // 1. Rilegge eventuali nuovi giochi installati in locale
                 _libraryService.LoadCacheAndLocalGames();
+                
 
                 // 2. Forza la sincronizzazione Cloud (Steam, PlayStation, Xbox) e scarica le cover mancanti
                 await _libraryService.SyncCloudIfNeededAsync(force: true);
@@ -469,20 +483,27 @@ class Program {{
             finally
             {
                 // Ferma la rotazione e riabilita il pulsante
-                MyFooterView.SyncRotateTransform.BeginAnimation(RotateTransform.AngleProperty, null);
-                MyFooterView.SyncRotateTransform.Angle = 0;
-                MyFooterView.BtnSync.IsEnabled = true;
+                FooterView.SyncRotateTransform.BeginAnimation(RotateTransform.AngleProperty, null);
+                FooterView.SyncRotateTransform.Angle = 0;
+                FooterView.BtnSync.IsEnabled = true;
             }
         }
 
+        
+
         private void BtnSettings_Click(object sender, RoutedEventArgs e)
         {
-            // Per ora apre rapidamente la cartella dove risiedono settings.json e library_cache.json
-            // (Pronto per essere sostituito dalla finestra grafica delle impostazioni!)
-            string appDataDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "GameStartMenu");
-            if (Directory.Exists(appDataDir))
+            // Chiude il popup del menu Start mentre lavoriamo comodamente nella finestra Impostazioni
+            ChiudiMenu();
+
+            if (_settingsWindow == null || !_settingsWindow.IsLoaded)
             {
-                Process.Start("explorer.exe", appDataDir);
+                _settingsWindow = new SettingsWindow(_libraryService);
+                _settingsWindow.Show();
+            }
+            else
+            {
+                _settingsWindow.Activate();
             }
         }
 

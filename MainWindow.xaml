@@ -33,13 +33,13 @@
             </Grid.RowDefinitions>
 
             <!-- 1. HEADER -->
-            <views:HeaderView Grid.Row="0" x:Name="MyHeaderView"/>
+            <views:HeaderView Grid.Row="0" x:Name="HeaderView"/>
 
             <!-- 2. GRIGLIA LIBRERIA -->
-            <views:LibraryGridView Grid.Row="1" x:Name="MyLibraryGridView"/>
+            <views:LibraryGridView Grid.Row="1" x:Name="LibraryView"/>
 
             <!-- 3. FOOTER -->
-            <views:FooterView Grid.Row="2" x:Name="MyFooterView"/>
+            <views:FooterView Grid.Row="2" x:Name="FooterView"/>
         </Grid>
     </Border>
 </Window>

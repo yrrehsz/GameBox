@@ -67,49 +67,45 @@ namespace GameStartMenu.Library
         [JsonIgnore]
         public bool IsRunnable => ActionType == GameActionType.Executable || !string.IsNullOrEmpty(ModLaunchCommand);
 
-        // Carica l'immagine dal disco in memoria senza bloccare il file
-        [JsonIgnore]
+        [System.Text.Json.Serialization.JsonIgnore]
+        private BitmapImage? _coverImageCache;
+
+        public void ReloadCoverImage()
+        {
+            _coverImageCache = null;
+        }
+
+        [System.Text.Json.Serialization.JsonIgnore]
         public BitmapImage? CoverImage
         {
             get
             {
+                if (_coverImageCache != null)
+                    return _coverImageCache;
+
+                if (string.IsNullOrEmpty(LocalCoverPath) || !File.Exists(LocalCoverPath))
+                    return null;
+
                 try
                 {
-                    // 1. Costruisce direttamente il percorso verso AppData\Roaming\GameStartMenu\Covers\{NormalizedId}.jpg
-                    string expectedFile = Path.Combine(
-                        Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-                        "GameStartMenu", "Covers", $"{NormalizedId}.jpg");
+                    // Legge tutti i byte in RAM e chiude istantaneamente il file su disco (Zero File Lock!)
+                    byte[] imageBytes = File.ReadAllBytes(LocalCoverPath);
+                    using var ms = new MemoryStream(imageBytes);
 
-                    string? finalPath = null;
+                    var bmp = new BitmapImage();
+                    bmp.BeginInit();
+                    bmp.CacheOption = BitmapCacheOption.OnLoad;
+                    bmp.StreamSource = ms;
+                    bmp.EndInit();
+                    bmp.Freeze();
 
-                    if (File.Exists(expectedFile))
-                    {
-                        finalPath = expectedFile;
-                    }
-                    else if (!string.IsNullOrEmpty(LocalCoverPath) && File.Exists(LocalCoverPath))
-                    {
-                        finalPath = LocalCoverPath;
-                    }
-
-                    // 2. Se abbiamo trovato il file sul disco fisso, lo carichiamo in RAM
-                    if (!string.IsNullOrEmpty(finalPath))
-                    {
-                        var bmp = new BitmapImage();
-                        bmp.BeginInit();
-                        bmp.CacheOption = BitmapCacheOption.OnLoad;
-                        bmp.UriSource = new Uri(finalPath, UriKind.Absolute);
-                        bmp.DecodePixelWidth = 280; // Nitidezza perfetta per le card
-                        bmp.EndInit();
-                        bmp.Freeze();
-                        return bmp;
-                    }
+                    _coverImageCache = bmp;
+                    return _coverImageCache;
                 }
                 catch
                 {
-                    // Ignora eventuali file corrotti
+                    return null;
                 }
-
-                return null;
             }
         }
 

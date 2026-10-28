@@ -24,18 +24,15 @@
                                               VerticalAlignment="Center"/>
                         </Border>
                         <ControlTemplate.Triggers>
-                            <!-- Hover: appare il riquadro arrotondato stile Windows 11 -->
                             <Trigger Property="IsMouseOver" Value="True">
                                 <Setter TargetName="BtnBox" Property="Background" Value="#1AFFFFFF"/>
                                 <Setter TargetName="BtnBox" Property="BorderBrush" Value="#12FFFFFF"/>
                                 <Setter Property="Foreground" Value="White"/>
                             </Trigger>
-                            <!-- Click/Pressione -->
                             <Trigger Property="IsPressed" Value="True">
                                 <Setter TargetName="BtnBox" Property="Background" Value="#0DFFFFFF"/>
                                 <Setter Property="Foreground" Value="#AAFFFFFF"/>
                             </Trigger>
-                            <!-- Disabilitato (es. mentre sta già sincronizzando) -->
                             <Trigger Property="IsEnabled" Value="False">
                                 <Setter Property="Opacity" Value="0.5"/>
                             </Trigger>
@@ -44,14 +41,47 @@
                 </Setter.Value>
             </Setter>
         </Style>
+
+        <!-- Stile identico per il pulsante del Controller (Adattato alla dimensione dell'immagine + LED) -->
+        <Style x:Key="Win11ControllerButton" TargetType="Button">
+            <Setter Property="Margin" Value="0,0,12,0"/>
+            <Setter Property="Padding" Value="10,4"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="CtrlBox"
+                                Background="{TemplateBinding Background}"
+                                Padding="{TemplateBinding Padding}"
+                                CornerRadius="6"
+                                BorderThickness="1"
+                                BorderBrush="Transparent">
+                            <ContentPresenter HorizontalAlignment="Center"
+                                              VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="CtrlBox" Property="Background" Value="#1AFFFFFF"/>
+                                <Setter TargetName="CtrlBox" Property="BorderBrush" Value="#12FFFFFF"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="CtrlBox" Property="Background" Value="#0DFFFFFF"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
     </UserControl.Resources>
 
-    <!-- Contenitore Footer con il colore e bordo richiesti -->
+    <!-- Contenitore Footer -->
     <Border Background="#40000000"
             BorderBrush="#4E111111"
             BorderThickness="0,1,0,0"
             CornerRadius="0,0,12,12"
-            Padding="28,14,28,14">
+            Padding="38,10,28,10"
+            Height="80">
 
         <Grid Background="Transparent">
 
@@ -75,25 +105,68 @@
                     </ItemsControl.ItemsPanel>
                     <ItemsControl.ItemTemplate>
                         <DataTemplate>
-                            <Border Background="Transparent" Margin="0,0,20,0" ToolTip="{Binding Name}">
+                            <!-- PULSANTE CONTROLLER CON RETTANGOLO SMUSSATO IN HOVER -->
+                            <Button Style="{StaticResource Win11ControllerButton}"
+                                    ToolTip="{Binding UniqueId}"
+                                    Tag="{Binding}"
+                                    Click="BtnControllerItem_Click">
                                 <StackPanel HorizontalAlignment="Center">
                                     <Image Source="{Binding IconImageSource}"
-                                           Height="45"
+                                           Height="40"
                                            Stretch="Uniform"
                                            RenderOptions.BitmapScalingMode="HighQuality"
                                            HorizontalAlignment="Center"/>
 
-                                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                                    <StackPanel Orientation="Horizontal"
+                                                HorizontalAlignment="Center"
+                                                Margin="0,2,0,0">
                                         <Ellipse Width="5" Height="5" Fill="{Binding Led1}" Margin="1.5,0"/>
                                         <Ellipse Width="5" Height="5" Fill="{Binding Led2}" Margin="1.5,0"/>
                                         <Ellipse Width="5" Height="5" Fill="{Binding Led3}" Margin="1.5,0"/>
                                         <Ellipse Width="5" Height="5" Fill="{Binding Led4}" Margin="1.5,0"/>
                                     </StackPanel>
                                 </StackPanel>
-                            </Border>
+                            </Button>
                         </DataTemplate>
                     </ItemsControl.ItemTemplate>
                 </ItemsControl>
+
+                <!-- MINI-MENU POPUP CON SOLO 2 ICONE (VIBRA / SPEGNI) -->
+                <Popup x:Name="ControllerActionPopup"
+                       Placement="Top"
+                       VerticalOffset="-6"
+                       StaysOpen="False"
+                       AllowsTransparency="True"
+                       PopupAnimation="Fade">
+                    <Border Background="#F21E1E1E"
+                            BorderBrush="#33FFFFFF"
+                            BorderThickness="1"
+                            CornerRadius="8"
+                            Padding="4">
+                        <StackPanel Orientation="Horizontal">
+                            <!-- Icona 1: Identifica (Vibrazione) -->
+                            <Button x:Name="BtnIdentifyController"
+                                    Style="{StaticResource Win11FooterIconButton}"
+                                    Width="34" Height="34"
+                                    Margin="0,0,4,0"
+                                    ToolTip="Identify (Vibrate)"
+                                    Click="BtnIdentifyController_Click">
+                                <ui:SymbolIcon Symbol="Alert24" FontSize="18"/>
+                            </Button>
+
+                            <!-- Icona 2: Spegni Controller -->
+                            <Button x:Name="BtnTurnOffController"
+                                    Style="{StaticResource Win11FooterIconButton}"
+                                    Width="34" Height="34"
+                                    Margin="0"
+                                    Foreground="#FF6B6B"
+                                    ToolTip="Turn Off Controller"
+                                    Click="BtnTurnOffController_Click">
+                                <ui:SymbolIcon Symbol="Power24" FontSize="18"/>
+                            </Button>
+                        </StackPanel>
+                    </Border>
+                </Popup>
             </Grid>
 
             <!-- I 4 PULSANTI A DESTRA (Sync, Pin to Taskbar, Settings, Close) -->

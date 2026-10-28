@@ -20,11 +20,19 @@ namespace GameStartMenu.Library
         // Valori possibili: "Default" (Eseguibili prima), "Alphabetical", "Platinums", "CompletionPct"
         public string OrderBy { get; set; } = "Default";
 
+        // Modalità di sincronizzazione: "Hourly" (Ogni ora), "Startup" (Solo all'avvio), "Manual" (Solo manuale)
+        public string SyncFrequency { get; set; } = "Hourly";
+
+        // Lista dei NormalizedId rimossi dall'utente, così il Sync non li fa riapparire!
+        public HashSet<string> HiddenGames { get; set; } = new();
+
         public static string AppDataFolder =>
             Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "GameStartMenu");
 
         public static string ConfigFilePath => Path.Combine(AppDataFolder, "settings.json");
         public static string CacheFilePath => Path.Combine(AppDataFolder, "library_cache.json");
+
+        public Dictionary<string, string> ControllerIcons { get; set; } = new();
 
         public static AppConfig Load()
         {
