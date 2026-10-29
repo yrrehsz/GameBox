@@ -137,7 +137,10 @@ namespace GameStartMenu.Library
             }
             catch { }
 
-            PlatformProviders.SyncSteamLocal(_library);
+            var installedSteamIds = PlatformProviders.SyncSteamLocal(_library);
+            var installedXboxIds = PlatformProviders.SyncXboxLocal(_library);
+            PlatformProviders.CleanupUninstalledGames(_library, installedSteamIds, installedXboxIds);
+            
             PurgeHiddenGames();
             SaveCache();
             OnLibraryUpdated?.Invoke(GetSortedGames());
@@ -181,6 +184,9 @@ namespace GameStartMenu.Library
             try
             {
                 var installedSteamIds = PlatformProviders.SyncSteamLocal(_library);
+                var installedXboxIds = PlatformProviders.SyncXboxLocal(_library);
+                PlatformProviders.CleanupUninstalledGames(_library, installedSteamIds, installedXboxIds);
+
                 PurgeHiddenGames();
 
                 await Task.WhenAll(
@@ -193,6 +199,9 @@ namespace GameStartMenu.Library
 
                 foreach (var game in _library.Values)
                 {
+                    if (game.HasCustomCover && !string.IsNullOrEmpty(game.LocalCoverPath) && File.Exists(game.LocalCoverPath))
+                        continue;
+
                     await CoverCacheHelper.EnsureCoverCachedAsync(game, Config.SteamGridDbApiKey);
                 }
 
@@ -306,6 +315,7 @@ namespace GameStartMenu.Library
                 }
 
                 game.LocalCoverPath = destPath;
+                game.HasCustomCover = true;
                 game.ReloadCoverImage();
             }
             catch (Exception ex)

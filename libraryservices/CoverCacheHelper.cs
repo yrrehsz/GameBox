@@ -13,6 +13,10 @@ namespace GameStartMenu.Library
 
         public static async Task EnsureCoverCachedAsync(UnifiedGame game, string steamGridDbKey = "")
         {
+
+            if (!string.IsNullOrEmpty(game.LocalCoverPath) && File.Exists(game.LocalCoverPath))
+                return;
+
             string coversDir = Path.Combine(AppConfig.AppDataFolder, "Covers");
             Directory.CreateDirectory(coversDir);
 

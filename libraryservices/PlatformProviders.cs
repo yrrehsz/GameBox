@@ -363,5 +363,221 @@ namespace GameStartMenu.Library
             }
             return game;
         }
+
+        public static HashSet<string> SyncXboxLocal(Dictionary<string, UnifiedGame> library)
+        {
+            var installedNormalizedIds = new HashSet<string>();
+
+            try
+            {
+                // 1. Cerca le cartelle "XboxGames" (e sottocartelle custom) su tutti i dischi fissi (C:\, D:\, E:\...)
+                var candidateGameDirs = new List<string>();
+
+                foreach (var drive in DriveInfo.GetDrives().Where(d => d.IsReady && d.DriveType == DriveType.Fixed))
+                {
+                    string defaultXboxDir = Path.Combine(drive.RootDirectory.FullName, "XboxGames");
+                    if (Directory.Exists(defaultXboxDir))
+                    {
+                        candidateGameDirs.AddRange(Directory.GetDirectories(defaultXboxDir));
+                    }
+
+                    string moddableDir = Path.Combine(drive.RootDirectory.FullName, "Program Files", "ModifiableWindowsApps");
+                    if (Directory.Exists(moddableDir))
+                    {
+                        candidateGameDirs.AddRange(Directory.GetDirectories(moddableDir));
+                    }
+                }
+
+                // 2. Controlla anche nel Registro di Windows (GamingServices\PackageRepository)
+                // così trova i giochi Xbox anche se l'utente li ha installati in una cartella con nome personalizzato!
+                try
+                {
+                    using var baseKey = Microsoft.Win32.Registry.LocalMachine.OpenSubKey(@"SOFTWARE\Microsoft\GamingServices\PackageRepository\Root");
+                    if (baseKey != null)
+                    {
+                        foreach (string subKeyName in baseKey.GetSubKeyNames())
+                        {
+                            using var subKey = baseKey.OpenSubKey(subKeyName);
+                            if (subKey == null) continue;
+                            foreach (string pkgKeyName in subKey.GetSubKeyNames())
+                            {
+                                using var pkgKey = subKey.OpenSubKey(pkgKeyName);
+                                string? rootPath = pkgKey?.GetValue("Root")?.ToString();
+                                if (!string.IsNullOrEmpty(rootPath) && Directory.Exists(rootPath))
+                                {
+                                    candidateGameDirs.Add(rootPath);
+                                }
+                            }
+                        }
+                    }
+                }
+                catch { }
+
+                // 3. Per ogni cartella gioco trovata, cerca MicrosoftGame.config (al massimo al 1° livello, es. \Content\)
+                // Questo evita di scansionare le 50 sottocartelle di Call of Duty!
+                foreach (string gameDir in candidateGameDirs.Distinct(StringComparer.OrdinalIgnoreCase))
+                {
+                    string? configPath = FindMicrosoftGameConfig(gameDir);
+                    if (string.IsNullOrEmpty(configPath)) continue;
+
+                    try
+                    {
+                        var doc = System.Xml.Linq.XDocument.Load(configPath);
+                        string configFolder = Path.GetDirectoryName(configPath)!;
+
+                        // Estrae il nome del gioco (da ShellVisuals -> DefaultDisplayName, oppure usa il nome della cartella principale)
+                        var shellVisuals = doc.Descendants().FirstOrDefault(e => e.Name.LocalName == "ShellVisuals");
+                        string rawTitle = shellVisuals?.Attribute("DefaultDisplayName")?.Value ?? "";
+
+                        // Se DefaultDisplayName è una risorsa ms-resource:// o è vuoto, usiamo il nome pulito della cartella in XboxGames!
+                        if (string.IsNullOrWhiteSpace(rawTitle) || rawTitle.StartsWith("ms-resource:", StringComparison.OrdinalIgnoreCase))
+                        {
+                            rawTitle = new DirectoryInfo(gameDir).Name;
+                        }
+
+                        // Ignora pacchetti di sistema / DLC / Runtime
+                        if (rawTitle.Contains("Gaming Services", StringComparison.OrdinalIgnoreCase) ||
+                            rawTitle.Contains("DirectX", StringComparison.OrdinalIgnoreCase) ||
+                            rawTitle.Contains("Add-on", StringComparison.OrdinalIgnoreCase) ||
+                            rawTitle.Contains("Content Pack", StringComparison.OrdinalIgnoreCase))
+                        {
+                            continue;
+                        }
+
+                        // Trova il primo nodo <Executable> valido dentro MicrosoftGame.config
+                        var exeNode = doc.Descendants().FirstOrDefault(e => e.Name.LocalName == "Executable");
+                        string? relativeExe = exeNode?.Attribute("Name")?.Value;
+                        if (string.IsNullOrEmpty(relativeExe)) continue;
+
+                        string fullExePath = Path.Combine(configFolder, relativeExe);
+
+                        // Verifica se possiamo costruire l'URI di avvio UWP/AppX (più affidabile per i giochi Xbox con DRM)
+                        // oppure usiamo il percorso diretto del gamelaunchhelper.exe / .exe principale
+                        string launchCommand = fullExePath;
+
+                        string gamelaunchHelper = Path.Combine(configFolder, "gamelaunchhelper.exe");
+                        if (File.Exists(gamelaunchHelper))
+                        {
+                            // Su Xbox PC quasi tutti i giochi moderni (incluso COD) usano gamelaunchhelper.exe nella root Content!
+                            launchCommand = gamelaunchHelper;
+                        }
+                        else if (!File.Exists(fullExePath))
+                        {
+                            continue;
+                        }
+
+                        var (key, cleanTitle) = TitleNormalizer.Normalize(rawTitle);
+                        if (string.IsNullOrEmpty(key) || key == "unknown") continue;
+
+                        if (!library.TryGetValue(key, out var game))
+                        {
+                            game = new UnifiedGame
+                            {
+                                NormalizedId = key,
+                                DisplayTitle = cleanTitle
+                            };
+                            library[key] = game;
+                        }
+
+                        // Assicura che compaia il badge Xbox sul gioco
+                        if (!game.Platforms.ContainsKey("Xbox"))
+                        {
+                            game.Platforms["Xbox"] = new PlatformCompletion
+                            {
+                                PlatformName = "Xbox",
+                                SubPlatform = "PC"
+                            };
+                        }
+
+                        // Imposta come Eseguibile (a meno che l'utente non abbia già personalizzato l'eseguibile in un gioco custom)
+                        if (!game.IsCustomGame || string.IsNullOrEmpty(game.LaunchCommand))
+                        {
+                            game.ActionType = GameActionType.Executable;
+                            game.LaunchCommand = launchCommand;
+                        }
+
+                        installedNormalizedIds.Add(key);
+                    }
+                    catch { }
+                }
+            }
+            catch { }
+
+            return installedNormalizedIds;
+        }
+
+        private static string? FindMicrosoftGameConfig(string gameDir)
+        {
+            try
+            {
+                // Caso 1: direttamente nella cartella (es. registro GamingServices punta già a \Content)
+                string direct = Path.Combine(gameDir, "MicrosoftGame.config");
+                if (File.Exists(direct)) return direct;
+
+                // Caso 2: dentro la sottocartella standard "Content" di XboxGames (es. C:\XboxGames\Halo Infinite\Content\MicrosoftGame.config)
+                string inContent = Path.Combine(gameDir, "Content", "MicrosoftGame.config");
+                if (File.Exists(inContent)) return inContent;
+
+                // Caso 3: controlla solo le sottocartelle di 1° livello
+                foreach (var subDir in Directory.GetDirectories(gameDir))
+                {
+                    string candidate = Path.Combine(subDir, "MicrosoftGame.config");
+                    if (File.Exists(candidate)) return candidate;
+                }
+            }
+            catch { }
+
+            return null;
+        }
+
+        // Verifica tutti i giochi segnati come Executable: se sono stati disinstallati da Steam o da Xbox PC,
+        // li riporta automaticamente a DisplayOnly!
+        public static void CleanupUninstalledGames(
+            Dictionary<string, UnifiedGame> library,
+            HashSet<string> installedSteamIds,
+            HashSet<string> installedXboxIds)
+        {
+            foreach (var game in library.Values)
+            {
+                if (game.ActionType != GameActionType.Executable)
+                    continue;
+
+                // Se è un gioco aggiunto manualmente dall'utente, verifichiamo solo se il file .exe esiste ancora
+                if (game.IsCustomGame)
+                {
+                    if (!string.IsNullOrEmpty(game.LaunchCommand) &&
+                        !game.LaunchCommand.Contains("://") &&
+                        !File.Exists(game.LaunchCommand))
+                    {
+                        game.ActionType = GameActionType.DisplayOnly;
+                        game.LaunchCommand = null;
+                    }
+                    continue;
+                }
+
+                string cmd = game.LaunchCommand ?? "";
+
+                // CASO 1: Gioco Steam (usa l'URI steam://rungameid/...)
+                if (cmd.StartsWith("steam://", StringComparison.OrdinalIgnoreCase))
+                {
+                    string steamAppId = cmd.Split('/').LastOrDefault() ?? "";
+                    if (!installedSteamIds.Contains(steamAppId) && !installedSteamIds.Contains(game.NormalizedId))
+                    {
+                        game.ActionType = GameActionType.DisplayOnly;
+                        game.LaunchCommand = null;
+                    }
+                }
+                // CASO 2: Gioco Xbox PC o eseguibile locale su disco
+                else if (!string.IsNullOrEmpty(cmd))
+                {
+                    // Se non è più tra i giochi Xbox rilevati E il file .exe non esiste più su disco, è stato disinstallato!
+                    if (!installedXboxIds.Contains(game.NormalizedId) && !File.Exists(cmd))
+                    {
+                        game.ActionType = GameActionType.DisplayOnly;
+                        game.LaunchCommand = null;
+                    }
+                }
+            }
+        }
     }
 }

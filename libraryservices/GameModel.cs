@@ -67,6 +67,8 @@ namespace GameStartMenu.Library
         [JsonIgnore]
         public bool IsRunnable => ActionType == GameActionType.Executable || !string.IsNullOrEmpty(ModLaunchCommand);
 
+        public bool HasCustomCover { get; set; } = false; // Se true, il Sync non sovrascriverà mai LocalCoverPath!
+
         [System.Text.Json.Serialization.JsonIgnore]
         private BitmapImage? _coverImageCache;
 
