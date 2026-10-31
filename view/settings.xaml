@@ -9,6 +9,7 @@
                  ExtendsContentIntoTitleBar="True"
                  WindowBackdropType="Mica"
                  WindowCornerPreference="Round"
+                 Icon="pack://application:,,,/assets/app/app_icon.ico"
                  Background="#181818">
 
     <Window.Resources>

@@ -160,16 +160,14 @@ _libraryService.Config.Save();
 
         private void BtnPinInfo_Click(object sender, RoutedEventArgs e)
         {
-            // Crea nella cartella Documenti un piccolo eseguibile "LauncherGiochi.exe" 
-            // che NON viene mai bloccato da VS Code e NON mostra MAI la lineetta sulla Taskbar!
             string docsDir = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
             string launcherPath = Path.Combine(docsDir, "LauncherGiochi.exe");
             string cscPath = @"C:\Windows\Microsoft.NET\Framework64\v4.0.30319\csc.exe";
 
             string tempCs = Path.Combine(Path.GetTempPath(), "LauncherGiochi.cs");
             string currentExe = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "GameStartMenu.exe");
+            string iconPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "assets/app", "app_icon.ico");
 
-            // Piccolo codice C# che sveglia il menu o lo avvia se è spento, e si chiude in 1ms (Zero lineetta!)
             string code = $@"
 using System.Threading;
 using System.Diagnostics;
@@ -185,15 +183,17 @@ class Program {{
 }}";
             File.WriteAllText(tempCs, code);
 
+            // Se esiste assets\app_icon.ico, la incorpora direttamente dentro LauncherGiochi.exe!
+            string iconArg = File.Exists(iconPath) ? $"/win32icon:\"{iconPath}\" " : "";
+
             Process.Start(new ProcessStartInfo
             {
                 FileName = cscPath,
-                Arguments = $"/target:winexe /out:\"{launcherPath}\" \"{tempCs}\"",
+                Arguments = $"/target:winexe {iconArg}/out:\"{launcherPath}\" \"{tempCs}\"",
                 CreateNoWindow = true,
                 UseShellExecute = false
             })?.WaitForExit();
 
-            // Apre Esplora File selezionando LauncherGiochi.exe pronto da fissare sulla Taskbar!
             Process.Start("explorer.exe", $"/select,\"{launcherPath}\"");
         }
 

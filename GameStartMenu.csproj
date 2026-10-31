@@ -6,7 +6,14 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <UseWPF>true</UseWPF>
+    <ApplicationIcon>assets/app/app_icon.ico</ApplicationIcon>
   </PropertyGroup>
+
+  <ItemGroup>
+    <Content Include="assets/app/app_icon.ico">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="System.Management" Version="10.0.13" />
@@ -14,8 +21,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <!-- Questo dice a WPF di includere tutti i file .png presenti nella cartella Assets -->
-    <Resource Include="assets\controllers\xbox\special\*.png" />
+    <Resource Include="assets\controllers\fluent\*.png" />
   </ItemGroup>
 
   <ItemGroup>

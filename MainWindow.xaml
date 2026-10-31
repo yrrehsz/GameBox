@@ -14,6 +14,7 @@
         Topmost="True"
         ShowInTaskbar="False"
         Loaded="Window_Loaded"
+        Icon="pack://application:,,,/assets/app/app_icon.ico"
         Deactivated="Window_Deactivated">
 
     <Border CornerRadius="12"

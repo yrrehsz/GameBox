@@ -80,8 +80,8 @@
             BorderBrush="#4E111111"
             BorderThickness="0,1,0,0"
             CornerRadius="0,0,12,12"
-            Padding="38,10,28,10"
-            Height="80">
+            Padding="38,5,28,6"
+            Height="71">
 
         <Grid Background="Transparent">
 
@@ -112,19 +112,19 @@
                                     Click="BtnControllerItem_Click">
                                 <StackPanel HorizontalAlignment="Center">
                                     <Image Source="{Binding IconImageSource}"
-                                           Height="40"
+                                           Height="48"
                                            Stretch="Uniform"
                                            RenderOptions.BitmapScalingMode="HighQuality"
                                            HorizontalAlignment="Center"/>
 
-                                    <StackPanel Orientation="Horizontal"
+                                    <!-- <StackPanel Orientation="Horizontal"
                                                 HorizontalAlignment="Center"
                                                 Margin="0,2,0,0">
                                         <Ellipse Width="5" Height="5" Fill="{Binding Led1}" Margin="1.5,0"/>
                                         <Ellipse Width="5" Height="5" Fill="{Binding Led2}" Margin="1.5,0"/>
                                         <Ellipse Width="5" Height="5" Fill="{Binding Led3}" Margin="1.5,0"/>
                                         <Ellipse Width="5" Height="5" Fill="{Binding Led4}" Margin="1.5,0"/>
-                                    </StackPanel>
+                                    </StackPanel> -->
                                 </StackPanel>
                             </Button>
                         </DataTemplate>
