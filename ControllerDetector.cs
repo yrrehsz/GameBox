@@ -245,7 +245,7 @@ namespace GameStartMenu
                             BluetoothAddress = btMac,
                             XInputSlot = explicitSlot ?? 99,
                             BadgeColor = "#440070D1",
-                            IconImageSource = "pack://application:,,,/assets/controllers/dualsense/regular/white.png"
+                            IconImageSource = "pack://application:,,,/assets/controllers/fluent/ps5.png"
                         };
                     }
                     // 2. NINTENDO SWITCH
@@ -260,7 +260,7 @@ namespace GameStartMenu
                             BluetoothAddress = btMac,
                             XInputSlot = explicitSlot ?? 99,
                             BadgeColor = "#44E60012",
-                            IconImageSource = "pack://application:,,,/assets/controllers/switch/regular/red.png"
+                            IconImageSource = "pack://application:,,,/assets/controllers/fluent/procontroller.png"
                         };
                     }
                     // 3. MICROSOFT XBOX

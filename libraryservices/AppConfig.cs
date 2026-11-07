@@ -26,6 +26,9 @@ namespace GameStartMenu.Library
         // Lista dei NormalizedId rimossi dall'utente, così il Sync non li fa riapparire!
         public HashSet<string> HiddenGames { get; set; } = new();
 
+        // Ordine di priorità per l'overlay 100% (es. "Xbox,PlayStation,Steam" oppure "None" per disabilitarli)
+public string OverlayPriority { get; set; } = "Xbox,PlayStation,Steam";
+
         public static string AppDataFolder =>
             Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "GameStartMenu");
 

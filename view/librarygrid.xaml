@@ -1,4 +1,4 @@
-<UserControl x:Class="GameStartMenu.Views.LibraryGridView"
+﻿<UserControl x:Class="GameStartMenu.Views.LibraryGridView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml">
@@ -17,12 +17,25 @@
 
             <ItemsControl.ItemTemplate>
                 <DataTemplate>
-                    <StackPanel Width="140"
-                                Margin="8,8,8,12"
-                                Panel.ZIndex="0">
+                    <!--
+                        Wrapper Grid che contiene:
+                          Row 0 (210px) - Copertina
+                          Row 1 (Auto)  - Barra badge sotto
+                        Permette all'overlay Xbox Platinum di stare a cavallo tra le due righe
+                        usando Panel.ZIndex elevato e Margin negativo sul bordo inferiore della cover.
+                    -->
+                    <Grid Width="140"
+                          Margin="8,8,8,12">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="210"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
 
+                        <!-- ======================================================= -->
                         <!-- 1. COPERTINA DEL GIOCO (140x210) CON EFFETTO STEAM GLOSSY & HOVER -->
+                        <!-- ======================================================= -->
                         <Border x:Name="CardBorder"
+                                Grid.Row="0"
                                 Width="140"
                                 Height="210"
                                 CornerRadius="0"
@@ -33,7 +46,8 @@
                                 ToolTip="{Binding DisplayTitle}"
                                 RenderTransformOrigin="0.5,0.5"
                                 MouseMove="CardBorder_MouseMove"
-                                MouseLeave="CardBorder_MouseLeave">
+                                MouseLeave="CardBorder_MouseLeave"
+                                Panel.ZIndex="0">
 
                             <!-- Trasformazione per Zoom + Sollevamento della Card -->
                             <Border.RenderTransform>
@@ -334,41 +348,64 @@
                         </Border>
 
                         <!-- 2. BARRA ICONE COMPLETAMENTO SOTTO LA COVER -->
-                        <Border Background="Transparent"
+                        <Border Grid.Row="1"
+                                MinHeight="30"
+                                Background="Transparent"
                                 BorderBrush="Transparent"
                                 BorderThickness="0"
                                 CornerRadius="0"
-                                Padding="6,6"
-                                Margin="0,5,0,0"
+                                Padding="0,0"
+                                Margin="0,10,0,0"
                                 HorizontalAlignment="Center">
                             <StackPanel Orientation="Horizontal"
                                         HorizontalAlignment="Center">
                                 <Image Source="{Binding SteamRankIcon}"
                                        Visibility="{Binding SteamBadgeVisibility}"
                                        ToolTip="{Binding SteamTooltip}"
-                                       Width="23"
-                                       Height="23"
+                                       Width="30"
+                                       Height="30"
                                        Margin="5,0"
                                        RenderOptions.BitmapScalingMode="HighQuality"/>
 
                                 <Image Source="{Binding PsRankIcon}"
                                        Visibility="{Binding PsBadgeVisibility}"
                                        ToolTip="{Binding PsTooltip}"
-                                       Width="22"
-                                       Height="22"
+                                       Width="30"
+                                       Height="30"
                                        Margin="5,0"
                                        RenderOptions.BitmapScalingMode="HighQuality"/>
 
                                 <Image Source="{Binding XboxRankIcon}"
                                        Visibility="{Binding XboxBadgeVisibility}"
                                        ToolTip="{Binding XboxTooltip}"
-                                       Width="23"
-                                       Height="23"
+                                       Width="30"
+                                       Height="30"
                                        Margin="5,0"
                                        RenderOptions.BitmapScalingMode="HighQuality"/>
                             </StackPanel>
                         </Border>
-                    </StackPanel>
+
+                        <!-- ======================================================= -->
+                        <!-- 3. OVERLAY PLATINUM UNIFICATO (XBOX / PS / STEAM)       -->
+                        <!--    Mostra solo l'overlay della piattaforma prioritaria! -->
+                        <!-- ======================================================= -->
+                        <Grid Grid.Row="0"
+                              Visibility="{Binding PlatinumOverlayVisibility}"
+                              Panel.ZIndex="10"
+                              VerticalAlignment="Bottom"
+                              HorizontalAlignment="Center"
+                              Margin="0,0,0,-14">
+
+                            <Image Source="{Binding PlatinumOverlayImage}"
+                                   Width="130"
+                                   Height="38"
+                                   HorizontalAlignment="Center"
+                                   VerticalAlignment="Center"
+                                   RenderOptions.BitmapScalingMode="HighQuality"
+                                   ToolTip="{Binding PlatinumOverlayTooltip}"/>
+                        </Grid>
+
+                    </Grid>
                 </DataTemplate>
             </ItemsControl.ItemTemplate>
         </ItemsControl>

@@ -39,14 +39,87 @@ namespace GameStartMenu.Library
         [JsonIgnore]
         public Visibility PlayButtonVisibility => ActionType == GameActionType.Executable ? Visibility.Visible : Visibility.Collapsed;
 
+        // Ordine di priorità globale letto da AppConfig (aggiornato da GameLibraryService)
         [JsonIgnore]
-        public Visibility SteamBadgeVisibility => Platforms.ContainsKey("Steam") ? Visibility.Visible : Visibility.Collapsed;
+        public static string[] GlobalOverlayPriority { get; set; } = new[] { "Xbox", "PlayStation", "Steam" };
+
+        // Mappa piattaforma -> file immagine overlay dentro assets/icons/achievements/
+        private static string? GetOverlayFileName(string platform) => platform switch
+        {
+            "Xbox" => "mythic_overlay.png",
+            "PlayStation" => "platinum_overlay.png",
+            "Steam" => "steam_overlay.png",
+            _ => null
+        };
+
+        // Determina quale SINGOLA piattaforma (tra quelle al 100%) vince il diritto di mostrare l'overlay
+        [JsonIgnore]
+        public string? ActiveOverlayPlatform
+        {
+            get
+            {
+                foreach (var plat in GlobalOverlayPriority)
+                {
+                    if (Platforms.TryGetValue(plat, out var p) && (p.IsCompleted100 || p.Percentage >= 100))
+                    {
+                        string? fileName = GetOverlayFileName(plat);
+                        if (!string.IsNullOrEmpty(fileName))
+                        {
+                            string fullPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "assets", "icons", "achievements", fileName);
+                            if (File.Exists(fullPath))
+                                return plat; // Trovato il vincitore!
+                        }
+                    }
+                }
+                return null;
+            }
+        }
+
+        // Visibilità delle 3 icone sotto la cover:
+        // Appaiono SEMPRE (anche se al 100%), tranne per l'unica piattaforma che sta già mostrando l'overlay sopra!
+        [JsonIgnore]
+        public Visibility SteamBadgeVisibility =>
+            Platforms.ContainsKey("Steam") && ActiveOverlayPlatform != "Steam"
+                ? Visibility.Visible
+                : Visibility.Collapsed;
 
         [JsonIgnore]
-        public Visibility PsBadgeVisibility => Platforms.ContainsKey("PlayStation") ? Visibility.Visible : Visibility.Collapsed;
+        public Visibility PsBadgeVisibility =>
+            Platforms.ContainsKey("PlayStation") && ActiveOverlayPlatform != "PlayStation"
+                ? Visibility.Visible
+                : Visibility.Collapsed;
 
         [JsonIgnore]
-        public Visibility XboxBadgeVisibility => Platforms.ContainsKey("Xbox") ? Visibility.Visible : Visibility.Collapsed;
+        public Visibility XboxBadgeVisibility =>
+            Platforms.ContainsKey("Xbox") && ActiveOverlayPlatform != "Xbox"
+                ? Visibility.Visible
+                : Visibility.Collapsed;
+
+        // Proprietà per il singolo Overlay dinamico sulla cover
+        [JsonIgnore]
+        public Visibility PlatinumOverlayVisibility =>
+            ActiveOverlayPlatform != null ? Visibility.Visible : Visibility.Collapsed;
+
+        [JsonIgnore]
+        public BitmapImage? PlatinumOverlayImage
+        {
+            get
+            {
+                string? active = ActiveOverlayPlatform;
+                if (active == null) return null;
+                string? fileName = GetOverlayFileName(active);
+                return fileName != null ? LoadIcon(fileName) : null;
+            }
+        }
+
+        [JsonIgnore]
+        public string PlatinumOverlayTooltip => ActiveOverlayPlatform switch
+        {
+            "Xbox" => XboxTooltip,
+            "PlayStation" => PsTooltip,
+            "Steam" => SteamTooltip,
+            _ => ""
+        };
 
         [JsonIgnore]
         public string SteamTooltip => Platforms.TryGetValue("Steam", out var p) ? $"Steam: {p.Percentage}% ({p.Unlocked}/{p.Total})" : "";

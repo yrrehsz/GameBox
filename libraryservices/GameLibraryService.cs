@@ -21,6 +21,7 @@ namespace GameStartMenu.Library
         public GameLibraryService()
         {
             Config = AppConfig.Load();
+            ApplyOverlayPriority(Config.OverlayPriority);
 
             // Timer che controlla ogni 5 minuti se è passata un'ora dall'ultimo sync (attivo solo se SyncFrequency == "Hourly")
             _hourlySyncTimer = new System.Timers.Timer(TimeSpan.FromMinutes(5).TotalMilliseconds);
@@ -361,6 +362,28 @@ namespace GameStartMenu.Library
             Config.OpenXblApiKey = openXblKey.Trim();
             Config.SteamGridDbApiKey = steamGridDbKey.Trim();
             Config.Save();
+        }
+
+        public void ApplyOverlayPriority(string priorityCsv)
+        {
+            Config.OverlayPriority = string.IsNullOrWhiteSpace(priorityCsv) ? "Xbox,PlayStation,Steam" : priorityCsv;
+
+            if (Config.OverlayPriority.Equals("None", StringComparison.OrdinalIgnoreCase))
+            {
+                UnifiedGame.GlobalOverlayPriority = Array.Empty<string>();
+            }
+            else
+            {
+                UnifiedGame.GlobalOverlayPriority = Config.OverlayPriority
+                    .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+            }
+        }
+
+        public void UpdateOverlayPrioritySetting(string priorityCsv)
+        {
+            ApplyOverlayPriority(priorityCsv);
+            Config.Save();
+            OnLibraryUpdated?.Invoke(GetSortedGames());
         }
 
 
