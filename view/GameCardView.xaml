@@ -1,0 +1,293 @@
+<UserControl x:Class="GameStartMenu.Views.GameCardView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml">
+
+    <UserControl.Resources>
+        <ResourceDictionary Source="GameCardResources.xaml"/>
+    </UserControl.Resources>
+
+    <!--
+        Card layout: two rows inside a fixed-width Grid.
+          Row 0 (210px) — Cover image with hover animations
+          Row 1 (Auto)  — Platform achievement badge bar
+        The platinum overlay spans both rows at ZIndex=10
+        and hangs half below the cover bottom via a negative bottom margin.
+    -->
+    <Grid Width="140" Margin="8,8,8,12">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="210"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- =====================================================
+             ROW 0 — GAME COVER  (140×210)
+             Steam-style glossy sheen + scale/lift on hover.
+        ===================================================== -->
+        <Border x:Name="CardBorder"
+                Grid.Row="0"
+                Width="140" Height="210"
+                CornerRadius="0"
+                Background="#1E1E1E"
+                BorderBrush="#26FFFFFF"
+                BorderThickness="0"
+                ClipToBounds="True"
+                RenderTransformOrigin="0.5,0.5"
+                MouseMove="CardBorder_MouseMove"
+                MouseLeave="CardBorder_MouseLeave"
+                Panel.ZIndex="0">
+
+            <!-- Scale + lift transform driven by hover animations -->
+            <Border.RenderTransform>
+                <TransformGroup>
+                    <ScaleTransform x:Name="CardScale" ScaleX="1.0" ScaleY="1.0"/>
+                    <TranslateTransform x:Name="CardTranslate" Y="0"/>
+                </TransformGroup>
+            </Border.RenderTransform>
+
+            <!-- Drop shadow that intensifies on hover -->
+            <Border.Effect>
+                <DropShadowEffect x:Name="CardShadow"
+                                  BlurRadius="10" ShadowDepth="3"
+                                  Direction="270" Color="Black" Opacity="0"/>
+            </Border.Effect>
+
+            <!-- Thin border glow on hover -->
+            <Border.Style>
+                <Style TargetType="Border">
+                    <Style.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter Property="BorderBrush" Value="#88A8D8FF"/>
+                        </Trigger>
+                    </Style.Triggers>
+                </Style>
+            </Border.Style>
+
+            <!-- Consolidated hover / leave animations -->
+            <Border.Triggers>
+                <EventTrigger RoutedEvent="MouseEnter">
+                    <BeginStoryboard>
+                        <Storyboard>
+                            <!-- Scale up: 1.0 → 1.05 -->
+                            <DoubleAnimation Storyboard.TargetName="CardScale"
+                                             Storyboard.TargetProperty="ScaleX"
+                                             To="1.05" Duration="0:0:0.18">
+                                <DoubleAnimation.EasingFunction><CubicEase EasingMode="EaseOut"/></DoubleAnimation.EasingFunction>
+                            </DoubleAnimation>
+                            <DoubleAnimation Storyboard.TargetName="CardScale"
+                                             Storyboard.TargetProperty="ScaleY"
+                                             To="1.05" Duration="0:0:0.18">
+                                <DoubleAnimation.EasingFunction><CubicEase EasingMode="EaseOut"/></DoubleAnimation.EasingFunction>
+                            </DoubleAnimation>
+                            <!-- Lift card upward by 4px -->
+                            <DoubleAnimation Storyboard.TargetName="CardTranslate"
+                                             Storyboard.TargetProperty="Y"
+                                             To="-4" Duration="0:0:0.18">
+                                <DoubleAnimation.EasingFunction><CubicEase EasingMode="EaseOut"/></DoubleAnimation.EasingFunction>
+                            </DoubleAnimation>
+                            <!-- Fade in glossy sheen -->
+                            <DoubleAnimation Storyboard.TargetName="GlossyOverlay"
+                                             Storyboard.TargetProperty="Opacity"
+                                             To="1.0" Duration="0:0:0.15"/>
+                            <!-- Fade in action button bar -->
+                            <DoubleAnimation Storyboard.TargetName="ActionOverlayBar"
+                                             Storyboard.TargetProperty="Opacity"
+                                             To="1.0" Duration="0:0:0.16"/>
+                        </Storyboard>
+                    </BeginStoryboard>
+                </EventTrigger>
+
+                <EventTrigger RoutedEvent="MouseLeave">
+                    <BeginStoryboard>
+                        <Storyboard>
+                            <!-- Scale back to normal -->
+                            <DoubleAnimation Storyboard.TargetName="CardScale"
+                                             Storyboard.TargetProperty="ScaleX"
+                                             To="1.0" Duration="0:0:0.2">
+                                <DoubleAnimation.EasingFunction><CubicEase EasingMode="EaseOut"/></DoubleAnimation.EasingFunction>
+                            </DoubleAnimation>
+                            <DoubleAnimation Storyboard.TargetName="CardScale"
+                                             Storyboard.TargetProperty="ScaleY"
+                                             To="1.0" Duration="0:0:0.2">
+                                <DoubleAnimation.EasingFunction><CubicEase EasingMode="EaseOut"/></DoubleAnimation.EasingFunction>
+                            </DoubleAnimation>
+                            <!-- Drop back to resting position -->
+                            <DoubleAnimation Storyboard.TargetName="CardTranslate"
+                                             Storyboard.TargetProperty="Y"
+                                             To="0" Duration="0:0:0.2">
+                                <DoubleAnimation.EasingFunction><CubicEase EasingMode="EaseOut"/></DoubleAnimation.EasingFunction>
+                            </DoubleAnimation>
+                            <!-- Fade out glossy sheen -->
+                            <DoubleAnimation Storyboard.TargetName="GlossyOverlay"
+                                             Storyboard.TargetProperty="Opacity"
+                                             To="0.0" Duration="0:0:0.25"/>
+                            <!-- Fade out action button bar -->
+                            <DoubleAnimation Storyboard.TargetName="ActionOverlayBar"
+                                             Storyboard.TargetProperty="Opacity"
+                                             To="0.0" Duration="0:0:0.18"/>
+                        </Storyboard>
+                    </BeginStoryboard>
+                </EventTrigger>
+            </Border.Triggers>
+
+            <Grid ClipToBounds="True">
+                <!-- Fallback title shown when cover image is missing -->
+                <TextBlock Text="{Binding DisplayTitle}"
+                           Foreground="#88FFFFFF"
+                           FontSize="12" FontWeight="SemiBold"
+                           TextWrapping="Wrap" TextAlignment="Center"
+                           VerticalAlignment="Center" HorizontalAlignment="Center"
+                           Margin="10"/>
+
+                <!-- Main cover image -->
+                <Image x:Name="MainCoverImg"
+                       Source="{Binding CoverImage}"
+                       Stretch="UniformToFill"
+                       RenderOptions.BitmapScalingMode="HighQuality"/>
+
+                <!-- Steam-style dynamic glossy sheen layer -->
+                <Canvas IsHitTestVisible="False" ClipToBounds="True">
+                    <Rectangle x:Name="GlossyOverlay"
+                               Width="260" Height="320"
+                               Canvas.Left="-60" Canvas.Top="-180"
+                               Opacity="0"
+                               RenderTransformOrigin="0.5,0.5">
+                        <Rectangle.RenderTransform>
+                            <TransformGroup>
+                                <RotateTransform Angle="-28"/>
+                                <TranslateTransform x:Name="GlossTranslate" X="0" Y="0"/>
+                            </TransformGroup>
+                        </Rectangle.RenderTransform>
+                        <Rectangle.Fill>
+                            <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                                <GradientStop Color="#00FFFFFF" Offset="0.0"/>
+                                <GradientStop Color="#08FFFFFF" Offset="0.35"/>
+                                <GradientStop Color="#38FFFFFF" Offset="0.50"/>
+                                <GradientStop Color="#08FFFFFF" Offset="0.65"/>
+                                <GradientStop Color="#00FFFFFF" Offset="1.0"/>
+                            </LinearGradientBrush>
+                        </Rectangle.Fill>
+                    </Rectangle>
+                </Canvas>
+
+                <!-- Action buttons bar — hidden by default, fades in on hover -->
+                <Border x:Name="ActionOverlayBar"
+                        Height="45"
+                        Margin="0,0,0,6"
+                        VerticalAlignment="Bottom"
+                        HorizontalAlignment="Stretch"
+                        Background="Transparent"
+                        Opacity="0">
+                    <StackPanel Orientation="Horizontal"
+                                HorizontalAlignment="Center"
+                                VerticalAlignment="Center">
+
+                        <!-- Play button (green hover) -->
+                        <Button Visibility="{Binding PlayButtonVisibility}"
+                                Cursor="Hand"
+                                Width="34" Height="34"
+                                Margin="4,0"
+                                ToolTip="Play Game"
+                                Tag="{Binding}"
+                                Click="BtnPlayGame_Click"
+                                Template="{StaticResource PlayButtonTemplate}">
+                            <ui:SymbolIcon Symbol="Play24" FontSize="17" Foreground="White"/>
+                        </Button>
+
+                        <!-- Play Modded / Emulator button (blue hover) -->
+                        <Button Visibility="{Binding ModButtonVisibility}"
+                                Cursor="Hand"
+                                Width="34" Height="34"
+                                Margin="4,0"
+                                ToolTip="{Binding ModDisplayName}"
+                                Tag="{Binding}"
+                                Click="BtnPlayModded_Click"
+                                Template="{StaticResource ModButtonTemplate}">
+                            <ui:SymbolIcon Symbol="Wrench24" FontSize="17" Foreground="White"/>
+                        </Button>
+
+                        <!-- Info / Achievements button (slate hover) -->
+                        <Button Cursor="Hand"
+                                Width="30" Height="30"
+                                Margin="4,0"
+                                ToolTip="Game Info &amp; Achievements"
+                                Tag="{Binding}"
+                                Click="BtnGameInfo_Click"
+                                Template="{StaticResource InfoButtonTemplate}">
+                            <ui:SymbolIcon Symbol="Info24" FontSize="17" Foreground="White"/>
+                        </Button>
+
+                    </StackPanel>
+                </Border>
+            </Grid>
+        </Border>
+
+        <!-- =====================================================
+             ROW 1 — PLATFORM ACHIEVEMENT BADGE BAR
+             Shows rank icons for Steam / PlayStation / Xbox.
+        ===================================================== -->
+        <Border Grid.Row="1"
+                MinHeight="36"
+                Background="Transparent"
+                Margin="0,8,0,0"
+                HorizontalAlignment="Center">
+            <StackPanel Orientation="Horizontal"
+                        HorizontalAlignment="Center"
+                        VerticalAlignment="Center">
+
+                <Image Source="{Binding SteamRankIcon}"
+                       Visibility="{Binding SteamBadgeVisibility}"
+                       ToolTip="{Binding SteamTooltip}"
+                       Width="{Binding SteamIconSize}"
+                       Height="{Binding SteamIconSize}"
+                       Stretch="Uniform"
+                       VerticalAlignment="Center"
+                       Margin="5,0"
+                       RenderOptions.BitmapScalingMode="HighQuality"/>
+
+                <Image Source="{Binding PsRankIcon}"
+                       Visibility="{Binding PsBadgeVisibility}"
+                       ToolTip="{Binding PsTooltip}"
+                       Width="{Binding PsIconSize}"
+                       Height="{Binding PsIconSize}"
+                       Stretch="Uniform"
+                       VerticalAlignment="Center"
+                       Margin="5,0"
+                       RenderOptions.BitmapScalingMode="HighQuality"/>
+
+                <Image Source="{Binding XboxRankIcon}"
+                       Visibility="{Binding XboxBadgeVisibility}"
+                       ToolTip="{Binding XboxTooltip}"
+                       Width="{Binding XboxIconSize}"
+                       Height="{Binding XboxIconSize}"
+                       Stretch="Uniform"
+                       VerticalAlignment="Center"
+                       Margin="5,0"
+                       RenderOptions.BitmapScalingMode="HighQuality"/>
+            </StackPanel>
+        </Border>
+
+        <!-- =====================================================
+             PLATINUM OVERLAY
+             Spans Row 0 + Row 1 at ZIndex=10.
+             Negative bottom margin equals half overlay height so it
+             straddles the cover bottom edge and the badge bar.
+             Only visible when PlatinumOverlayVisibility is Visible.
+        ===================================================== -->
+        <Grid Grid.Row="0" Grid.RowSpan="2"
+              Visibility="{Binding PlatinumOverlayVisibility}"
+              Panel.ZIndex="10"
+              VerticalAlignment="Bottom"
+              HorizontalAlignment="Center"
+              Margin="0,0,0,-14"
+              IsHitTestVisible="False">
+            <Image Source="{Binding PlatinumOverlayImage}"
+                   Width="130" Height="38"
+                   HorizontalAlignment="Center"
+                   VerticalAlignment="Center"
+                   RenderOptions.BitmapScalingMode="HighQuality"
+                   ToolTip="{Binding PlatinumOverlayTooltip}"/>
+        </Grid>
+
+    </Grid>
+</UserControl>
