@@ -12,6 +12,7 @@ namespace GameStartMenu.Views
     {
         public event Action<UnifiedGame>? OnPlayGameRequested;
         public event Action<UnifiedGame>? OnPlayModdedRequested;
+        public event Action<UnifiedGame>? OnGameInfoRequested;
 
         public LibraryGridView()
         {
@@ -75,6 +76,14 @@ namespace GameStartMenu.Views
                     return result;
             }
             return null;
+        }
+
+        private void BtnGameInfo_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is FrameworkElement btn && btn.Tag is UnifiedGame game)
+            {
+                OnGameInfoRequested?.Invoke(game);
+            }
         }
     }
 }

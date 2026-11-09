@@ -23,6 +23,76 @@
             <Setter Property="Margin" Value="0,0,0,10"/>
         </Style>
 
+        <!-- Stile CheckBox reskinnata come pulsante rettangolare per la scelta degli Overlay (187x61) -->
+        <Style x:Key="Win11OverlayTileCheckBox" TargetType="CheckBox">
+            <Setter Property="Width" Value="235"/>
+            <Setter Property="Height" Value="115"/>
+            <Setter Property="Margin" Value="0,0,12,12"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Foreground" Value="#CCFFFFFF"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="CheckBox">
+                        <Border x:Name="TileBorder"
+                                Background="#0DFFFFFF"
+                                BorderBrush="#1AFFFFFF"
+                                BorderThickness="1.5"
+                                CornerRadius="8"
+                                Padding="14,10">
+                            <Grid>
+                                <!-- Badge in alto a destra (Mostra l'ordine di priorità 1°, 2°, 3° o spunta quando attivo) -->
+                                <Border x:Name="CheckBadge"
+                                        Width="22"
+                                        Height="22"
+                                        CornerRadius="11"
+                                        Background="#60CDFF"
+                                        HorizontalAlignment="Right"
+                                        VerticalAlignment="Top"
+                                        Visibility="Collapsed">
+                                    <TextBlock Text="{Binding Tag, RelativeSource={RelativeSource TemplatedParent}}"
+                                               Foreground="#121212"
+                                               FontSize="11"
+                                               FontWeight="Bold"
+                                               HorizontalAlignment="Center"
+                                               VerticalAlignment="Center"/>
+                                </Border>
+
+                                <!-- Contenuto centrale (Immagine 187x61 + Nome Piattaforma) -->
+                                <ContentPresenter HorizontalAlignment="Center"
+                                                  VerticalAlignment="Center"/>
+                            </Grid>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <!-- Effetto Hover quando il mouse passa sopra -->
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="TileBorder" Property="Background" Value="#18FFFFFF"/>
+                                <Setter TargetName="TileBorder" Property="BorderBrush" Value="#44FFFFFF"/>
+                                <Setter Property="Foreground" Value="White"/>
+                            </Trigger>
+
+                            <!-- Stato Selezionato (Checked) -->
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="TileBorder" Property="Background" Value="#2260CDFF"/>
+                                <Setter TargetName="TileBorder" Property="BorderBrush" Value="#60CDFF"/>
+                                <Setter TargetName="CheckBadge" Property="Visibility" Value="Visible"/>
+                                <Setter Property="Foreground" Value="White"/>
+                            </Trigger>
+
+                            <!-- Hover + Selezionato insieme -->
+                            <MultiTrigger>
+                                <MultiTrigger.Conditions>
+                                    <Condition Property="IsChecked" Value="True"/>
+                                    <Condition Property="IsMouseOver" Value="True"/>
+                                </MultiTrigger.Conditions>
+                                <Setter TargetName="TileBorder" Property="Background" Value="#3060CDFF"/>
+                                <Setter TargetName="TileBorder" Property="BorderBrush" Value="#88DCFF"/>
+                            </MultiTrigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
         <!-- Stile pulsanti navigazione laterale Windows 11 -->
         <Style x:Key="Win11NavRadio" TargetType="RadioButton">
             <Setter Property="Height" Value="40"/>
@@ -121,6 +191,15 @@
                     <StackPanel Orientation="Horizontal">
                         <ui:SymbolIcon Symbol="CloudSync24" FontSize="18" Margin="0,0,12,0"/>
                         <TextBlock Text="Sync" VerticalAlignment="Center"/>
+                    </StackPanel>
+                </RadioButton>
+
+                <RadioButton x:Name="NavAppearance"
+                             Style="{StaticResource Win11NavRadio}"
+                             Checked="NavTab_Checked">
+                    <StackPanel Orientation="Horizontal">
+                        <ui:SymbolIcon Symbol="Color24" FontSize="18" Margin="0,0,12,0"/>
+                        <TextBlock Text="Appearance" VerticalAlignment="Center"/>
                     </StackPanel>
                 </RadioButton>
             </StackPanel>
@@ -457,6 +536,135 @@
                         <TextBlock Text="Controller icon &amp; color customization will be configured in the next step." Foreground="#AAFFFFFF"/>
                     </Border>
                 </StackPanel>
+
+                <!-- ========================================================= -->
+                <!-- SCHEDA APPEARANCE: Scelta Visuale Overlay 100% (187x61)   -->
+                <!-- ========================================================= -->
+                <ScrollViewer x:Name="PageAppearance" Visibility="Collapsed" VerticalScrollBarVisibility="Auto" Padding="0,0,8,0">
+                    <StackPanel>
+                        <TextBlock Text="Appearance"
+                                   FontSize="22"
+                                   FontWeight="SemiBold"
+                                   Foreground="White"
+                                   Margin="0,0,0,14"/>
+
+                        <Border Style="{StaticResource Win11SettingsCard}">
+                            <StackPanel>
+                                <TextBlock Text="100% Completion Cover Overlays"
+                                           Foreground="White"
+                                           FontWeight="Medium"
+                                           FontSize="14"/>
+                                <TextBlock Text="Select which overlays can appear on completed games. The click order sets the priority (1, 2, 3) when a game is completed on multiple platforms."
+                                           Foreground="#88FFFFFF"
+                                           FontSize="11"
+                                           TextWrapping="Wrap"
+                                           Margin="0,3,0,16"/>
+
+                                <!-- Griglia con le CheckBox rettangolari reskinnate -->
+                                <WrapPanel Orientation="Horizontal">
+
+                                    <!-- 1. XBOX OVERLAY (187x61) -->
+                                    <CheckBox x:Name="ChkOverlayXbox"
+                                              Style="{StaticResource Win11OverlayTileCheckBox}"
+                                              Click="OverlayPlatformCheckBox_Click">
+                                        <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
+                                            <Image Source="pack://application:,,,/assets/icons/achievements/mythic_overlay.png"
+                                                   Width="187"
+                                                   Height="61"
+                                                   Stretch="Uniform"
+                                                   RenderOptions.BitmapScalingMode="HighQuality"/>
+                                            <TextBlock Text="Xbox Mythic Overlay"
+                                                       FontSize="12"
+                                                       FontWeight="Medium"
+                                                       HorizontalAlignment="Center"
+                                                       Margin="0,8,0,0"/>
+                                        </StackPanel>
+                                    </CheckBox>
+
+                                    <!-- 2. PLAYSTATION OVERLAY (187x61) -->
+                                    <CheckBox x:Name="ChkOverlayPs"
+                                              Style="{StaticResource Win11OverlayTileCheckBox}"
+                                              Click="OverlayPlatformCheckBox_Click">
+                                        <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
+                                            <Image Source="pack://application:,,,/assets/icons/achievements/ps_platinum_overlay.png"
+                                                   Width="187"
+                                                   Height="61"
+                                                   Stretch="Uniform"
+                                                   RenderOptions.BitmapScalingMode="HighQuality"/>
+                                            <TextBlock Text="PlayStation Platinum Overlay"
+                                                       FontSize="12"
+                                                       FontWeight="Medium"
+                                                       HorizontalAlignment="Center"
+                                                       Margin="0,8,0,0"/>
+                                        </StackPanel>
+                                    </CheckBox>
+
+                                    <!-- 3. STEAM OVERLAY (187x61) -->
+                                    <CheckBox x:Name="ChkOverlaySteam"
+                                              Style="{StaticResource Win11OverlayTileCheckBox}"
+                                              Click="OverlayPlatformCheckBox_Click">
+                                        <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
+                                            <Image Source="pack://application:,,,/assets/icons/achievements/steam_complete_overlay.png"
+                                                   Width="187"
+                                                   Height="61"
+                                                   Stretch="Uniform"
+                                                   RenderOptions.BitmapScalingMode="HighQuality"/>
+                                            <TextBlock Text="Steam 100% Ribbon Overlay"
+                                                       FontSize="12"
+                                                       FontWeight="Medium"
+                                                       HorizontalAlignment="Center"
+                                                       Margin="0,8,0,0"/>
+                                        </StackPanel>
+                                    </CheckBox>
+
+                                    <!-- 4. NESSUN OVERLAY (NONE) -->
+                                    <CheckBox x:Name="ChkOverlayNone"
+                                              Style="{StaticResource Win11OverlayTileCheckBox}"
+                                              Tag="✓"
+                                              Click="OverlayNoneCheckBox_Click">
+                                        <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
+                                            <Border Width="187"
+                                                    Height="61"
+                                                    CornerRadius="6"
+                                                    Background="#0AFFFFFF"
+                                                    BorderBrush="#22FFFFFF"
+                                                    BorderThickness="1">
+                                                <StackPanel Orientation="Horizontal"
+                                                            HorizontalAlignment="Center"
+                                                            VerticalAlignment="Center">
+                                                    <ui:SymbolIcon Symbol="Prohibited24" FontSize="22" Foreground="#99FFFFFF" Margin="0,0,8,0"/>
+                                                    <TextBlock Text="No Overlay"
+                                                               FontSize="13"
+                                                               FontWeight="SemiBold"
+                                                               Foreground="#CCFFFFFF"
+                                                               VerticalAlignment="Center"/>
+                                                </StackPanel>
+                                            </Border>
+                                            <TextBlock Text="None (Show bottom icons only)"
+                                                       FontSize="12"
+                                                       FontWeight="Medium"
+                                                       HorizontalAlignment="Center"
+                                                       Margin="0,8,0,0"/>
+                                        </StackPanel>
+                                    </CheckBox>
+
+                                </WrapPanel>
+
+                                <!-- Riepilogo visivo della priorità attuale -->
+                                <Border Background="#12FFFFFF"
+                                        CornerRadius="6"
+                                        Padding="12,8"
+                                        Margin="0,6,0,0">
+                                    <TextBlock x:Name="TxtOverlayPrioritySummary"
+                                               Text="Active Priority: Xbox › PlayStation › Steam"
+                                               Foreground="#60CDFF"
+                                               FontSize="12"
+                                               FontWeight="Medium"/>
+                                </Border>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+                </ScrollViewer>
 
                 <!-- ========================================================= -->
                 <!-- SCHEDA 4: SYNC (Frequenza di Sync + Tutte le API Key)     -->

@@ -43,7 +43,6 @@
                                 BorderBrush="#26FFFFFF"
                                 BorderThickness="0"
                                 ClipToBounds="True"
-                                ToolTip="{Binding DisplayTitle}"
                                 RenderTransformOrigin="0.5,0.5"
                                 MouseMove="CardBorder_MouseMove"
                                 MouseLeave="CardBorder_MouseLeave"
@@ -72,6 +71,87 @@
 
                             <!-- Trigger di animazione quando il mouse entra ed esce dalla copertina -->
                             <Border.Triggers>
+                                <EventTrigger RoutedEvent="MouseEnter">
+                                    <BeginStoryboard>
+                                        <Storyboard>
+                                            <DoubleAnimation Storyboard.TargetName="CardScale"
+                                                             Storyboard.TargetProperty="ScaleX"
+                                                             To="1.05"
+                                                             Duration="0:0:0.18">
+                                                <DoubleAnimation.EasingFunction>
+                                                    <CubicEase EasingMode="EaseOut"/>
+                                                </DoubleAnimation.EasingFunction>
+                                            </DoubleAnimation>
+                                            <DoubleAnimation Storyboard.TargetName="CardScale"
+                                                             Storyboard.TargetProperty="ScaleY"
+                                                             To="1.05"
+                                                             Duration="0:0:0.18">
+                                                <DoubleAnimation.EasingFunction>
+                                                    <CubicEase EasingMode="EaseOut"/>
+                                                </DoubleAnimation.EasingFunction>
+                                            </DoubleAnimation>
+                                            <DoubleAnimation Storyboard.TargetName="CardTranslate"
+                                                             Storyboard.TargetProperty="Y"
+                                                             To="-4"
+                                                             Duration="0:0:0.18">
+                                                <DoubleAnimation.EasingFunction>
+                                                    <CubicEase EasingMode="EaseOut"/>
+                                                </DoubleAnimation.EasingFunction>
+                                            </DoubleAnimation>
+                                            <DoubleAnimation Storyboard.TargetName="GlossyOverlay"
+                                                             Storyboard.TargetProperty="Opacity"
+                                                             To="1.0"
+                                                             Duration="0:0:0.15"/>
+
+                                            <!-- Comparsa della barra inferiore (1/3 della cover) in Hover -->
+                                            <DoubleAnimation Storyboard.TargetName="ActionOverlayBar"
+                                                             Storyboard.TargetProperty="Opacity"
+                                                             To="1.0"
+                                                             Duration="0:0:0.16"/>
+                                        </Storyboard>
+                                    </BeginStoryboard>
+                                </EventTrigger>
+
+                                <EventTrigger RoutedEvent="MouseLeave">
+                                    <BeginStoryboard>
+                                        <Storyboard>
+                                            <DoubleAnimation Storyboard.TargetName="CardScale"
+                                                             Storyboard.TargetProperty="ScaleX"
+                                                             To="1.0"
+                                                             Duration="0:0:0.2">
+                                                <DoubleAnimation.EasingFunction>
+                                                    <CubicEase EasingMode="EaseOut"/>
+                                                </DoubleAnimation.EasingFunction>
+                                            </DoubleAnimation>
+                                            <DoubleAnimation Storyboard.TargetName="CardScale"
+                                                             Storyboard.TargetProperty="ScaleY"
+                                                             To="1.0"
+                                                             Duration="0:0:0.2">
+                                                <DoubleAnimation.EasingFunction>
+                                                    <CubicEase EasingMode="EaseOut"/>
+                                                </DoubleAnimation.EasingFunction>
+                                            </DoubleAnimation>
+                                            <DoubleAnimation Storyboard.TargetName="CardTranslate"
+                                                             Storyboard.TargetProperty="Y"
+                                                             To="0"
+                                                             Duration="0:0:0.2">
+                                                <DoubleAnimation.EasingFunction>
+                                                    <CubicEase EasingMode="EaseOut"/>
+                                                </DoubleAnimation.EasingFunction>
+                                            </DoubleAnimation>
+                                            <DoubleAnimation Storyboard.TargetName="GlossyOverlay"
+                                                             Storyboard.TargetProperty="Opacity"
+                                                             To="0.0"
+                                                             Duration="0:0:0.25"/>
+
+                                            <!-- Scomparsa della barra inferiore -->
+                                            <DoubleAnimation Storyboard.TargetName="ActionOverlayBar"
+                                                             Storyboard.TargetProperty="Opacity"
+                                                             To="0.0"
+                                                             Duration="0:0:0.18"/>
+                                        </Storyboard>
+                                    </BeginStoryboard>
+                                </EventTrigger>
                                 <EventTrigger RoutedEvent="MouseEnter">
                                     <BeginStoryboard>
                                         <Storyboard>
@@ -177,8 +257,9 @@
                                            HorizontalAlignment="Center"
                                            Margin="10"/>
 
-                                <!-- Immagine di Copertina 600x900 -->
-                                <Image Source="{Binding CoverImage}"
+                                <!-- 1. Immagine di Copertina Principale Nitida -->
+                                <Image x:Name="MainCoverImg"
+                                       Source="{Binding CoverImage}"
                                        Stretch="UniformToFill"
                                        RenderOptions.BitmapScalingMode="HighQuality"/>
 
@@ -203,183 +284,266 @@
                                         <Rectangle.Fill>
                                             <LinearGradientBrush StartPoint="0,0"
                                                                  EndPoint="0,1">
-                                                <GradientStop Color="#00FFFFFF"
-                                                              Offset="0.0"/>
-                                                <GradientStop Color="#08FFFFFF"
-                                                              Offset="0.35"/>
-                                                <GradientStop Color="#38FFFFFF"
-                                                              Offset="0.50"/>
-                                                <GradientStop Color="#08FFFFFF"
-                                                              Offset="0.65"/>
-                                                <GradientStop Color="#00FFFFFF"
-                                                              Offset="1.0"/>
+                                                <GradientStop Color="#00FFFFFF" Offset="0.0"/>
+                                                <GradientStop Color="#08FFFFFF" Offset="0.35"/>
+                                                <GradientStop Color="#38FFFFFF" Offset="0.50"/>
+                                                <GradientStop Color="#08FFFFFF" Offset="0.65"/>
+                                                <GradientStop Color="#00FFFFFF" Offset="1.0"/>
                                             </LinearGradientBrush>
                                         </Rectangle.Fill>
                                     </Rectangle>
                                 </Canvas>
 
-                                <!-- CONTENITORE PULSANTI DI AVVIO IN BASSO (In colonna) -->
-                                <StackPanel Orientation="Vertical"
-                                            HorizontalAlignment="Right"
-                                            VerticalAlignment="Bottom"
-                                            Margin="0,0,6,6">
+                                <!-- CONTENITORE INVISIBILE DEI PULSANTI (Compare in Hover) -->
+                                <Border x:Name="ActionOverlayBar"
+                                        Height="45"
+                                        Margin="0,0,0,6"
+                                        VerticalAlignment="Bottom"
+                                        HorizontalAlignment="Stretch"
+                                        Background="Transparent"
+                                        Opacity="0">
 
-                                    <!-- PULSANTE PLAY MODDED / EMULATORE -->
-                                    <Button Visibility="{Binding ModButtonVisibility}"
-                                            Cursor="Hand"
-                                            Margin="0,0,0,5"
-                                            Width="34"
-                                            Height="34"
-                                            ToolTip="{Binding ModDisplayName}"
-                                            Tag="{Binding}"
-                                            Click="BtnPlayModded_Click"
-                                            RenderTransformOrigin="0.5,0.5">
-                                        <Button.RenderTransform>
-                                            <ScaleTransform x:Name="ModBtnScale" ScaleX="1.0" ScaleY="1.0"/>
-                                        </Button.RenderTransform>
+                                    <StackPanel Orientation="Horizontal"
+                                                HorizontalAlignment="Center"
+                                                VerticalAlignment="Center">
 
-                                        <!-- Template circolare puro con colore Hover personalizzato -->
-                                        <Button.Template>
-                                            <ControlTemplate TargetType="Button">
-                                                <Border x:Name="BtnBorder"
-                                                        CornerRadius="17"
-                                                        Background="#CC181818"
-                                                        BorderBrush="#33FFFFFF"
-                                                        BorderThickness="0">
-                                                    <ContentPresenter HorizontalAlignment="Center"
-                                                                      VerticalAlignment="Center"/>
-                                                </Border>
-                                                <ControlTemplate.Triggers>
-                                                    <Trigger Property="IsMouseOver" Value="True">
-                                                        <!-- Cambia qui il colore di Hover! -->
-                                                        <Setter TargetName="BtnBorder" Property="Background" Value="#FF2C3E50"/>
-                                                        <Setter TargetName="BtnBorder" Property="BorderBrush" Value="#88FFFFFF"/>
-                                                    </Trigger>
-                                                </ControlTemplate.Triggers>
-                                            </ControlTemplate>
-                                        </Button.Template>
+                                        <!-- 1. PULSANTE PLAY STANDARD (Ritaglio geometrico arrotondato perfetto 34x34, R=6) -->
+                                        <Button Visibility="{Binding PlayButtonVisibility}"
+                                                Cursor="Hand"
+                                                Width="34"
+                                                Height="34"
+                                                Margin="4,0"
+                                                ToolTip="Play Game"
+                                                Tag="{Binding}"
+                                                Click="BtnPlayGame_Click">
+                                            <Button.Template>
+                                                <ControlTemplate TargetType="Button">
+                                                    <Grid Width="34" Height="34">
+                                                        <!-- Ritaglio Geometrico esatto con angoli arrotondati Radius=6 -->
+                                                        <Canvas Width="34" Height="34">
+                                                            <Canvas.Clip>
+                                                                <RectangleGeometry Rect="0,0,34,34" RadiusX="6" RadiusY="6"/>
+                                                            </Canvas.Clip>
+                                                            <Image Source="{Binding CoverImage}"
+                                                                   Width="140"
+                                                                   Height="210"
+                                                                   Stretch="UniformToFill"
+                                                                   Canvas.Left="-32"
+                                                                   Canvas.Top="-165">
+                                                                <Image.Effect>
+                                                                    <BlurEffect Radius="18" KernelType="Gaussian"/>
+                                                                </Image.Effect>
+                                                            </Image>
+                                                        </Canvas>
 
-                                        <!-- Icona Chiave Inglese (Cambia FontSize per ingrandirla) -->
-                                        <ui:SymbolIcon Symbol="Wrench24"
-                                                       FontSize="16"
-                                                       Foreground="White"/>
+                                                        <!-- Velo scuro fumé + Bordo + Icona nitida -->
+                                                        <Border x:Name="BtnBorder"
+                                                                CornerRadius="6"
+                                                                Background="#66000000"
+                                                                BorderBrush="#55FFFFFF"
+                                                                BorderThickness="0">
+                                                            <ContentPresenter HorizontalAlignment="Center"
+                                                                              VerticalAlignment="Center"/>
+                                                        </Border>
+                                                    </Grid>
+                                                    <ControlTemplate.Triggers>
+                                                        <Trigger Property="IsMouseOver" Value="True">
+                                                            <!-- Gradiente verde/blu in stile Steam all'hover -->
+                                                            <Setter TargetName="BtnBorder" Property="BorderBrush">
+                                                                <Setter.Value>
+                                                                    <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                                                                        <GradientStop Color="#88FFFFFF" Offset="0.0"/>
+                                                                        <GradientStop Color="#22FFFFFF" Offset="1.0"/>
+                                                                    </LinearGradientBrush>
+                                                                </Setter.Value>
+                                                            </Setter>
+                                                            <Setter TargetName="BtnBorder" Property="Background">
+                                                                <Setter.Value>
+                                                                    <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                                                                        <GradientStop Color="#FF4CAF50" Offset="0.0"/>
+                                                                        <GradientStop Color="#FF2E7D32" Offset="1.0"/>
+                                                                    </LinearGradientBrush>
+                                                                </Setter.Value>
+                                                            </Setter>
+                                                        </Trigger>
+                                                    </ControlTemplate.Triggers>
+                                                </ControlTemplate>
+                                            </Button.Template>
+                                            <ui:SymbolIcon Symbol="Play24" FontSize="17" Foreground="White"/>
+                                        </Button>
 
-                                        <Button.Triggers>
-                                            <EventTrigger RoutedEvent="MouseEnter">
-                                                <BeginStoryboard>
-                                                    <Storyboard>
-                                                        <DoubleAnimation Storyboard.TargetName="ModBtnScale" Storyboard.TargetProperty="ScaleX" To="1.1" Duration="0:0:0.16"/>
-                                                        <DoubleAnimation Storyboard.TargetName="ModBtnScale" Storyboard.TargetProperty="ScaleY" To="1.1" Duration="0:0:0.16"/>
-                                                    </Storyboard>
-                                                </BeginStoryboard>
-                                            </EventTrigger>
-                                            <EventTrigger RoutedEvent="MouseLeave">
-                                                <BeginStoryboard>
-                                                    <Storyboard>
-                                                        <DoubleAnimation Storyboard.TargetName="ModBtnScale" Storyboard.TargetProperty="ScaleX" To="1.0" Duration="0:0:0.16"/>
-                                                        <DoubleAnimation Storyboard.TargetName="ModBtnScale" Storyboard.TargetProperty="ScaleY" To="1.0" Duration="0:0:0.16"/>
-                                                    </Storyboard>
-                                                </BeginStoryboard>
-                                            </EventTrigger>
-                                        </Button.Triggers>
-                                    </Button>
+                                        <!-- 2. PULSANTE PLAY MODDED / EMULATORE (Ritaglio geometrico arrotondato perfetto 34x34, R=6) -->
+                                        <Button Visibility="{Binding ModButtonVisibility}"
+                                                Cursor="Hand"
+                                                Width="34"
+                                                Height="34"
+                                                Margin="4,0"
+                                                ToolTip="{Binding ModDisplayName}"
+                                                Tag="{Binding}"
+                                                Click="BtnPlayModded_Click">
+                                            <Button.Template>
+                                                <ControlTemplate TargetType="Button">
+                                                    <Grid Width="34" Height="34">
+                                                        <!-- Ritaglio Geometrico esatto con angoli arrotondati Radius=6 -->
+                                                        <Canvas Width="34" Height="34">
+                                                            <Canvas.Clip>
+                                                                <RectangleGeometry Rect="0,0,34,34" RadiusX="6" RadiusY="6"/>
+                                                            </Canvas.Clip>
+                                                            <Image Source="{Binding CoverImage}"
+                                                                   Width="140"
+                                                                   Height="210"
+                                                                   Stretch="UniformToFill"
+                                                                   Canvas.Left="-53"
+                                                                   Canvas.Top="-165">
+                                                                <Image.Effect>
+                                                                    <BlurEffect Radius="18" KernelType="Gaussian"/>
+                                                                </Image.Effect>
+                                                            </Image>
+                                                        </Canvas>
 
-                                    <!-- PULSANTE PLAY STANDARD -->
-                                    <Button Visibility="{Binding PlayButtonVisibility}"
-                                            Cursor="Hand"
-                                            Width="34"
-                                            Height="34"
-                                            ToolTip="Avvia gioco"
-                                            Tag="{Binding}"
-                                            Click="BtnPlayGame_Click"
-                                            RenderTransformOrigin="0.5,0.5">
-                                        <Button.RenderTransform>
-                                            <ScaleTransform x:Name="PlayBtnScale" ScaleX="1.0" ScaleY="1.0"/>
-                                        </Button.RenderTransform>
+                                                        <!-- Velo scuro fumé + Bordo + Icona nitida -->
+                                                        <Border x:Name="BtnBorder"
+                                                                CornerRadius="6"
+                                                                Background="#66000000"
+                                                                BorderBrush="#55FFFFFF"
+                                                                BorderThickness="0">
+                                                            <ContentPresenter HorizontalAlignment="Center"
+                                                                              VerticalAlignment="Center"/>
+                                                        </Border>
+                                                    </Grid>
+                                                    <ControlTemplate.Triggers>
+                                                        <Trigger Property="IsMouseOver" Value="True">
+                                                            <Setter TargetName="BtnBorder" Property="BorderBrush">
+                                                                <Setter.Value>
+                                                                    <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                                                                        <GradientStop Color="#88FFFFFF" Offset="0.0"/>
+                                                                        <GradientStop Color="#22FFFFFF" Offset="1.0"/>
+                                                                    </LinearGradientBrush>
+                                                                </Setter.Value>
+                                                            </Setter>
+                                                            <Setter TargetName="BtnBorder" Property="Background">
+                                                                <Setter.Value>
+                                                                    <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                                                                        <GradientStop Color="#FF29B6F6" Offset="0.0"/>
+                                                                        <GradientStop Color="#FF0288D1" Offset="1.0"/>
+                                                                    </LinearGradientBrush>
+                                                                </Setter.Value>
+                                                            </Setter>
+                                                        </Trigger>
+                                                    </ControlTemplate.Triggers>
+                                                </ControlTemplate>
+                                            </Button.Template>
+                                            <ui:SymbolIcon Symbol="Wrench24" FontSize="17" Foreground="White"/>
+                                        </Button>
 
-                                        <!-- Template circolare puro con colore Hover personalizzato -->
-                                        <Button.Template>
-                                            <ControlTemplate TargetType="Button">
-                                                <Border x:Name="BtnBorder"
-                                                        CornerRadius="17"
-                                                        Background="#CC181818"
-                                                        BorderBrush="#33FFFFFF"
-                                                        BorderThickness="0">
-                                                    <ContentPresenter HorizontalAlignment="Center"
-                                                                      VerticalAlignment="Center"/>
-                                                </Border>
-                                                <ControlTemplate.Triggers>
-                                                    <Trigger Property="IsMouseOver" Value="True">
-                                                        <!-- Cambia qui il colore di Hover! -->
-                                                        <Setter TargetName="BtnBorder" Property="Background" Value="#FF2C3E50"/>
-                                                        <Setter TargetName="BtnBorder" Property="BorderBrush" Value="#88FFFFFF"/>
-                                                    </Trigger>
-                                                </ControlTemplate.Triggers>
-                                            </ControlTemplate>
-                                        </Button.Template>
+                                        <!-- 3. PULSANTE INFO (Ritaglio geometrico Circolare perfetto 30x30, R=15) -->
+                                        <Button Cursor="Hand"
+                                                Width="30"
+                                                Height="30"
+                                                Margin="4,0"
+                                                ToolTip="Game Info &amp; Achievements"
+                                                Tag="{Binding}"
+                                                Click="BtnGameInfo_Click">
+                                            <Button.Template>
+                                                <ControlTemplate TargetType="Button">
+                                                    <Grid Width="30" Height="30">
+                                                        <!-- Ritaglio Geometrico Circolare perfetto (EllipseGeometry) -->
+                                                        <Canvas Width="30" Height="30">
+                                                            <Canvas.Clip>
+                                                                <EllipseGeometry Center="15,15" RadiusX="15" RadiusY="15"/>
+                                                            </Canvas.Clip>
+                                                            <Image Source="{Binding CoverImage}"
+                                                                   Width="140"
+                                                                   Height="210"
+                                                                   Stretch="UniformToFill"
+                                                                   Canvas.Left="-93"
+                                                                   Canvas.Top="-167">
+                                                                <Image.Effect>
+                                                                    <BlurEffect Radius="18" KernelType="Gaussian"/>
+                                                                </Image.Effect>
+                                                            </Image>
+                                                        </Canvas>
 
-                                        <!-- Icona Play (Cambia FontSize per ingrandirla) -->
-                                        <ui:SymbolIcon Symbol="Play24"
-                                                       FontSize="16"
-                                                       Foreground="White"/>
+                                                        <!-- Velo scuro fumé + Bordo + Icona nitida -->
+                                                        <Border x:Name="BtnBorder"
+                                                                CornerRadius="15"
+                                                                Background="#66000000"
+                                                                BorderBrush="#55FFFFFF"
+                                                                BorderThickness="0">
+                                                            <ContentPresenter HorizontalAlignment="Center"
+                                                                              VerticalAlignment="Center"/>
+                                                        </Border>
+                                                    </Grid>
+                                                    <ControlTemplate.Triggers>
+                                                        <Trigger Property="IsMouseOver" Value="True">
+                                                            <Setter TargetName="BtnBorder" Property="BorderBrush">
+                                                                <Setter.Value>
+                                                                    <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                                                                        <GradientStop Color="#88FFFFFF" Offset="0.0"/>
+                                                                        <GradientStop Color="#22FFFFFF" Offset="1.0"/>
+                                                                    </LinearGradientBrush>
+                                                                </Setter.Value>
+                                                            </Setter>
+                                                            <Setter TargetName="BtnBorder" Property="Background">
+                                                                <Setter.Value>
+                                                                    <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                                                                        <GradientStop Color="#FF78909C" Offset="0.0"/>
+                                                                        <GradientStop Color="#FF455A64" Offset="1.0"/>
+                                                                    </LinearGradientBrush>
+                                                                </Setter.Value>
+                                                            </Setter>
+                                                        </Trigger>
+                                                    </ControlTemplate.Triggers>
+                                                </ControlTemplate>
+                                            </Button.Template>
+                                            <ui:SymbolIcon Symbol="Info24" FontSize="17" Foreground="White"/>
+                                        </Button>
 
-                                        <Button.Triggers>
-                                            <EventTrigger RoutedEvent="MouseEnter">
-                                                <BeginStoryboard>
-                                                    <Storyboard>
-                                                        <DoubleAnimation Storyboard.TargetName="PlayBtnScale" Storyboard.TargetProperty="ScaleX" To="1.1" Duration="0:0:0.16"/>
-                                                        <DoubleAnimation Storyboard.TargetName="PlayBtnScale" Storyboard.TargetProperty="ScaleY" To="1.1" Duration="0:0:0.16"/>
-                                                    </Storyboard>
-                                                </BeginStoryboard>
-                                            </EventTrigger>
-                                            <EventTrigger RoutedEvent="MouseLeave">
-                                                <BeginStoryboard>
-                                                    <Storyboard>
-                                                        <DoubleAnimation Storyboard.TargetName="PlayBtnScale" Storyboard.TargetProperty="ScaleX" To="1.0" Duration="0:0:0.16"/>
-                                                        <DoubleAnimation Storyboard.TargetName="PlayBtnScale" Storyboard.TargetProperty="ScaleY" To="1.0" Duration="0:0:0.16"/>
-                                                    </Storyboard>
-                                                </BeginStoryboard>
-                                            </EventTrigger>
-                                        </Button.Triggers>
-                                    </Button>
-
-                                </StackPanel>
+                                    </StackPanel>
+                                </Border>
                             </Grid>
                         </Border>
 
                         <!-- 2. BARRA ICONE COMPLETAMENTO SOTTO LA COVER -->
                         <Border Grid.Row="1"
-                                MinHeight="30"
+                                MinHeight="36"
                                 Background="Transparent"
                                 BorderBrush="Transparent"
                                 BorderThickness="0"
                                 CornerRadius="0"
                                 Padding="0,0"
-                                Margin="0,10,0,0"
+                                Margin="0,8,0,0"
                                 HorizontalAlignment="Center">
                             <StackPanel Orientation="Horizontal"
-                                        HorizontalAlignment="Center">
+                                        HorizontalAlignment="Center"
+                                        VerticalAlignment="Center">
                                 <Image Source="{Binding SteamRankIcon}"
                                        Visibility="{Binding SteamBadgeVisibility}"
                                        ToolTip="{Binding SteamTooltip}"
-                                       Width="30"
-                                       Height="30"
+                                       Width="{Binding SteamIconSize}"
+                                       Height="{Binding SteamIconSize}"
+                                       Stretch="Uniform"
+                                       VerticalAlignment="Center"
                                        Margin="5,0"
                                        RenderOptions.BitmapScalingMode="HighQuality"/>
 
                                 <Image Source="{Binding PsRankIcon}"
                                        Visibility="{Binding PsBadgeVisibility}"
                                        ToolTip="{Binding PsTooltip}"
-                                       Width="30"
-                                       Height="30"
+                                       Width="{Binding PsIconSize}"
+                                       Height="{Binding PsIconSize}"
+                                       Stretch="Uniform"
+                                       VerticalAlignment="Center"
                                        Margin="5,0"
                                        RenderOptions.BitmapScalingMode="HighQuality"/>
 
                                 <Image Source="{Binding XboxRankIcon}"
                                        Visibility="{Binding XboxBadgeVisibility}"
                                        ToolTip="{Binding XboxTooltip}"
-                                       Width="30"
-                                       Height="30"
+                                       Width="{Binding XboxIconSize}"
+                                       Height="{Binding XboxIconSize}"
+                                       Stretch="Uniform"
+                                       VerticalAlignment="Center"
                                        Margin="5,0"
                                        RenderOptions.BitmapScalingMode="HighQuality"/>
                             </StackPanel>

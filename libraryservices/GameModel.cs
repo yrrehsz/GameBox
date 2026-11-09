@@ -75,6 +75,47 @@ namespace GameStartMenu.Library
             }
         }
 
+        // Dimensione dinamica per l'icona Steam (Default: 28px, 100%: 30px)
+        [JsonIgnore]
+        public double SteamIconSize => Platforms.TryGetValue("Steam", out var p)
+            ? ((p.IsCompleted100 || p.Percentage >= 100) ? 32.0 : 32.0)
+            : 32.0;
+
+        // Dimensione dinamica per l'icona PlayStation (Platino più grande: 36px, Trofei base: 29px)
+        [JsonIgnore]
+        public double PsIconSize
+        {
+            get
+            {
+                if (!Platforms.TryGetValue("PlayStation", out var p)) return 27.0;
+                if (p.IsCompleted100 || p.Percentage >= 100) return 34.0; // Trofeo di Platino più grande!
+                return p.Percentage switch
+                {
+                    <= 10 => 27.0, // Locked
+                    <= 25 => 27.0, // Bronzo
+                    <= 49 => 27.0, // Argento
+                    _     => 27.0  // Oro
+                };
+            }
+        }
+
+        // Dimensione dinamica per l'icona Xbox (Più compatta rispetto alle altre: 24px - 26px)
+        [JsonIgnore]
+        public double XboxIconSize
+        {
+            get
+            {
+                if (!Platforms.TryGetValue("Xbox", out var p)) return 28.0;
+                if (p.IsCompleted100 || p.Percentage >= 100) return 28.0; // Mythic (se mostrato sotto)
+                return p.Percentage switch
+                {
+                    <= 10 => 28.0, // Locked
+                    <= 49 => 28.0, // Silver
+                    _     => 28.0  // Diamond
+                };
+            }
+        }
+
         // Visibilità delle 3 icone sotto la cover:
         // Appaiono SEMPRE (anche se al 100%), tranne per l'unica piattaforma che sta già mostrando l'overlay sopra!
         [JsonIgnore]
@@ -227,13 +268,13 @@ namespace GameStartMenu.Library
 
         private static string GetSteamIconName(int pct, bool is100)
         {
-            if (is100 || pct >= 100) return "steam_complete.png";
+            if (is100 || pct >= 100) return "steam_purple.png";
             return pct switch
             {
                 <= 10 => "steam_locked.png", // 0% - 10%
-                <= 25 => "steam_locked.png", // 11% - 25%
-                <= 49 => "steam_locked.png", // 26% - 49%
-                _     => "steam_locked.png"  // 50% - 99%
+                <= 25 => "steam_white.png", // 11% - 25%
+                <= 49 => "steam_green.png", // 26% - 49%
+                _     => "steam_red.png"  // 50% - 99%
             };
         }
 

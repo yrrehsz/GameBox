@@ -15,6 +15,8 @@ namespace GameStartMenu
     {
         private readonly GameLibraryService _libraryService;
         private List<UnifiedGame> _games = new();
+
+        private readonly List<string> _overlayPriorityOrder = new();
         private string? _pendingLibraryCoverPath = null;
         private string? _pendingNewGameCoverPath = null;
 
@@ -24,6 +26,7 @@ namespace GameStartMenu
             _libraryService = libraryService;
 
             CaricaListaGiochi();
+            CaricaImpostazioniAppearance();
             CaricaImpostazioniSync();
         }
 
@@ -36,6 +39,7 @@ namespace GameStartMenu
 
             PageLibrary.Visibility = NavLibrary.IsChecked == true ? Visibility.Visible : Visibility.Collapsed;
             PageAddGame.Visibility = NavAddGame.IsChecked == true ? Visibility.Visible : Visibility.Collapsed;
+            PageAppearance.Visibility = NavAppearance.IsChecked == true ? Visibility.Visible : Visibility.Collapsed;
             PageController.Visibility = NavController.IsChecked == true ? Visibility.Visible : Visibility.Collapsed;
             PageSync.Visibility = NavSync.IsChecked == true ? Visibility.Visible : Visibility.Collapsed;
         }
@@ -376,6 +380,94 @@ namespace GameStartMenu
             {
                 BtnSyncNowSettings.IsEnabled = true;
             }
+        }
+
+        // =====================================================================
+        // SCHEDA APPEARANCE (Scelta Overlay 187x61 + Ordine di Priorità)
+        // =====================================================================
+        private void CaricaImpostazioniAppearance()
+        {
+            _overlayPriorityOrder.Clear();
+            string saved = _libraryService.Config.OverlayPriority ?? "Xbox,PlayStation,Steam";
+
+            if (!saved.Equals("None", StringComparison.OrdinalIgnoreCase))
+            {
+                foreach (var p in saved.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+                {
+                    if ((p == "Xbox" || p == "PlayStation" || p == "Steam") && !_overlayPriorityOrder.Contains(p))
+                        _overlayPriorityOrder.Add(p);
+                }
+            }
+
+            AggiornaUIButtonsOverlay();
+        }
+
+        private void OverlayPlatformCheckBox_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is not CheckBox chk) return;
+
+            string platform = chk == ChkOverlayXbox ? "Xbox"
+                            : chk == ChkOverlayPs ? "PlayStation"
+                            : "Steam";
+
+            if (chk.IsChecked == true)
+            {
+                // Aggiunge in coda alla priorità (es. se clicchi prima PS e poi Xbox, PS è 1° e Xbox è 2°)
+                if (!_overlayPriorityOrder.Contains(platform))
+                    _overlayPriorityOrder.Add(platform);
+            }
+            else
+            {
+                _overlayPriorityOrder.Remove(platform);
+            }
+
+            SalvaEAggiornaOverlay();
+        }
+
+        private void OverlayNoneCheckBox_Click(object sender, RoutedEventArgs e)
+        {
+            if (ChkOverlayNone.IsChecked == true)
+            {
+                // Se l'utente clicca su "None", deseleziona tutti gli overlay
+                _overlayPriorityOrder.Clear();
+            }
+            else if (_overlayPriorityOrder.Count == 0)
+            {
+                // Se deseleziona "None" senza aver scelto altro, riattiva l'ordine predefinito
+                _overlayPriorityOrder.AddRange(new[] { "Xbox", "PlayStation", "Steam" });
+            }
+
+            SalvaEAggiornaOverlay();
+        }
+
+        private void SalvaEAggiornaOverlay()
+        {
+            AggiornaUIButtonsOverlay();
+
+            string newConfigValue = _overlayPriorityOrder.Count == 0
+                ? "None"
+                : string.Join(",", _overlayPriorityOrder);
+
+            _libraryService.UpdateOverlayPrioritySetting(newConfigValue);
+        }
+
+        private void AggiornaUIButtonsOverlay()
+        {
+            bool isNone = _overlayPriorityOrder.Count == 0;
+
+            ChkOverlayNone.IsChecked = isNone;
+            ChkOverlayXbox.IsChecked = _overlayPriorityOrder.Contains("Xbox");
+            ChkOverlayPs.IsChecked = _overlayPriorityOrder.Contains("PlayStation");
+            ChkOverlaySteam.IsChecked = _overlayPriorityOrder.Contains("Steam");
+
+            // Imposta il numero di priorità (1, 2, 3) nel badge azzurro in alto a destra del pulsante!
+            ChkOverlayXbox.Tag = (_overlayPriorityOrder.IndexOf("Xbox") + 1).ToString();
+            ChkOverlayPs.Tag = (_overlayPriorityOrder.IndexOf("PlayStation") + 1).ToString();
+            ChkOverlaySteam.Tag = (_overlayPriorityOrder.IndexOf("Steam") + 1).ToString();
+
+            TxtOverlayPrioritySummary.Text = isNone
+                ? "Active Priority: None (Overlays disabled, all achievements shown as bottom icons)"
+                : $"Active Priority: {string.Join("  ›  ", _overlayPriorityOrder)}";
         }
     }
 }
