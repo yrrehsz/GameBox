@@ -1,0 +1,17 @@
+<UserControl x:Class="GameStartMenu.Views.ControllerTabView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml">
+
+    <StackPanel>
+        <TextBlock Text="Controller Settings"
+                   FontSize="22" FontWeight="SemiBold"
+                   Foreground="White" Margin="0,0,0,14"/>
+
+        <Border Style="{StaticResource Win11SettingsCard}">
+            <TextBlock Text="Controller icon &amp; color customization will be configured in the next step."
+                       Foreground="#AAFFFFFF"/>
+        </Border>
+    </StackPanel>
+
+</UserControl>

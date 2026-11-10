@@ -1,0 +1,172 @@
+<UserControl x:Class="GameStartMenu.Views.LibraryTabView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml">
+
+    <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="0,0,8,0">
+        <StackPanel>
+            <TextBlock Text="Library Management"
+                       FontSize="22" FontWeight="SemiBold"
+                       Foreground="White" Margin="0,0,0,14"/>
+
+            <!-- Game selector: dropdown + Prev/Next arrows -->
+            <Border Style="{StaticResource Win11SettingsCard}">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+
+                    <StackPanel Grid.Column="0" VerticalAlignment="Center" Margin="0,0,16,0">
+                        <TextBlock Text="Select Game" Foreground="White" FontWeight="Medium"/>
+                        <TextBlock x:Name="TxtGameCounter" Text="0 / 0" Foreground="#88FFFFFF" FontSize="11"/>
+                    </StackPanel>
+
+                    <ComboBox x:Name="CmbGamesList"
+                              Grid.Column="1"
+                              DisplayMemberPath="DisplayTitle"
+                              SelectionChanged="CmbGamesList_SelectionChanged"
+                              Margin="0,0,10,0"/>
+
+                    <StackPanel Grid.Column="2" Orientation="Horizontal">
+                        <ui:Button x:Name="BtnPrevGame"
+                                   Icon="{ui:SymbolIcon ChevronLeft24}"
+                                   ToolTip="Previous game"
+                                   Margin="0,0,6,0" Padding="8"
+                                   Click="BtnPrevGame_Click"/>
+                        <ui:Button x:Name="BtnNextGame"
+                                   Icon="{ui:SymbolIcon ChevronRight24}"
+                                   ToolTip="Next game"
+                                   Padding="8"
+                                   Click="BtnNextGame_Click"/>
+                    </StackPanel>
+                </Grid>
+            </Border>
+
+            <!-- Game details: cover preview on the left, executable fields on the right -->
+            <Grid Margin="0,4,0,0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="165"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+
+                <!-- Cover preview + Change Cover button -->
+                <Border Grid.Column="0"
+                        Style="{StaticResource Win11SettingsCard}"
+                        Padding="12" Margin="0,0,12,0"
+                        VerticalAlignment="Top">
+                    <StackPanel HorizontalAlignment="Center">
+                        <Border Width="130" Height="195"
+                                CornerRadius="6"
+                                Background="#141414"
+                                BorderBrush="#26FFFFFF"
+                                BorderThickness="1"
+                                ClipToBounds="True">
+                            <Image x:Name="ImgLibraryCoverPreview"
+                                   Stretch="UniformToFill"
+                                   RenderOptions.BitmapScalingMode="HighQuality"/>
+                        </Border>
+
+                        <ui:Button x:Name="BtnChangeCover"
+                                   Content="Change Cover"
+                                   Icon="{ui:SymbolIcon Image24}"
+                                   Appearance="Secondary"
+                                   HorizontalAlignment="Stretch"
+                                   Margin="0,10,0,0"
+                                   Click="BtnChangeCover_Click"/>
+                    </StackPanel>
+                </Border>
+
+                <!-- Main and secondary executable fields -->
+                <StackPanel Grid.Column="1">
+
+                    <!-- Card: Main executable -->
+                    <Border Style="{StaticResource Win11SettingsCard}">
+                        <StackPanel>
+                            <TextBlock Text="Main Executable / Launch URL"
+                                       Foreground="White" FontWeight="Medium"/>
+                            <TextBlock Text="Path to the main .exe, .bat, or Steam protocol (e.g. steam://rungameid/...)"
+                                       Foreground="#88FFFFFF" FontSize="11" Margin="0,2,0,10"/>
+
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <ui:TextBox x:Name="TxtMainExecutable"
+                                            Grid.Column="0"
+                                            PlaceholderText="Not configured (Display only)"
+                                            ClearButtonEnabled="True"
+                                            Margin="0,0,8,0"/>
+                                <ui:Button Grid.Column="1"
+                                           Content="Browse..."
+                                           Icon="{ui:SymbolIcon FolderOpen24}"
+                                           Click="BtnBrowseMainExe_Click"/>
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Card: Secondary executable (mod / emulator) -->
+                    <Border Style="{StaticResource Win11SettingsCard}">
+                        <StackPanel>
+                            <TextBlock Text="Secondary Executable (Modded / Emulator)"
+                                       Foreground="White" FontWeight="Medium"/>
+                            <TextBlock Text="Enables the secondary Wrench button on the game cover (e.g. ModEngine, ShadPS4, Ryujinx)"
+                                       Foreground="#88FFFFFF" FontSize="11" Margin="0,2,0,10"/>
+
+                            <Grid Margin="0,0,0,10">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <ui:TextBox x:Name="TxtModExecutable"
+                                            Grid.Column="0"
+                                            PlaceholderText="Optional path to modded launcher or script..."
+                                            ClearButtonEnabled="True"
+                                            Margin="0,0,8,0"/>
+                                <ui:Button Grid.Column="1"
+                                           Content="Browse..."
+                                           Icon="{ui:SymbolIcon FolderOpen24}"
+                                           Click="BtnBrowseModExe_Click"/>
+                            </Grid>
+
+                            <TextBlock Text="Secondary Button Tooltip"
+                                       Foreground="#CCFFFFFF" FontSize="12" Margin="0,0,0,4"/>
+                            <ui:TextBox x:Name="TxtModDisplayName"
+                                        PlaceholderText="Play Modded"/>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Bottom action bar: Delete (left) + Save Changes (right) -->
+                    <Grid Margin="0,4,0,0">
+                        <ui:Button x:Name="BtnDeleteGame"
+                                   Content="Delete Game"
+                                   Icon="{ui:SymbolIcon Delete24}"
+                                   Appearance="Danger"
+                                   HorizontalAlignment="Left"
+                                   Padding="14,8"
+                                   Click="BtnDeleteGame_Click"/>
+
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                            <TextBlock x:Name="TxtSaveLibraryStatus"
+                                       Text="Saved successfully!"
+                                       Foreground="#6CCB5F"
+                                       VerticalAlignment="Center"
+                                       Margin="0,0,12,0"
+                                       Visibility="Collapsed"/>
+                            <ui:Button x:Name="BtnSaveGameChanges"
+                                       Content="Save Changes"
+                                       Icon="{ui:SymbolIcon Save24}"
+                                       Appearance="Primary"
+                                       Padding="18,8"
+                                       Click="BtnSaveGameChanges_Click"/>
+                        </StackPanel>
+                    </Grid>
+
+                </StackPanel>
+            </Grid>
+        </StackPanel>
+    </ScrollViewer>
+
+</UserControl>

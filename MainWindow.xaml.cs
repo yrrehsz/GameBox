@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Diagnostics;
 using System.IO;
 using System.Runtime.InteropServices;
@@ -493,17 +493,24 @@ class Program {{
 
         private void BtnSettings_Click(object sender, RoutedEventArgs e)
         {
-            // Chiude il popup del menu Start mentre lavoriamo comodamente nella finestra Impostazioni
+            // Close the start menu popup while working in Settings
             ChiudiMenu();
 
-            if (_settingsWindow == null || !_settingsWindow.IsLoaded)
+            try
             {
-                _settingsWindow = new SettingsWindow(_libraryService);
-                _settingsWindow.Show();
+                if (_settingsWindow == null || !_settingsWindow.IsLoaded)
+                {
+                    _settingsWindow = new SettingsWindow(_libraryService);
+                    _settingsWindow.Show();
+                }
+                else
+                {
+                    _settingsWindow.Activate();
+                }
             }
-            else
+            catch (Exception ex)
             {
-                _settingsWindow.Activate();
+                System.Windows.MessageBox.Show($"Error opening Settings:\n\n{ex.Message}\n\n{ex.StackTrace}", "GameBox Error", System.Windows.MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 

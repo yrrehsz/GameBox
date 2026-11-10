@@ -1,0 +1,130 @@
+<UserControl x:Class="GameStartMenu.Views.SyncTabView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml">
+
+    <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="0,0,8,0">
+        <StackPanel>
+            <TextBlock Text="Cloud Synchronization"
+                       FontSize="22" FontWeight="SemiBold"
+                       Foreground="White" Margin="0,0,0,14"/>
+
+            <!-- Sync frequency + Sync Now -->
+            <Border Style="{StaticResource Win11SettingsCard}">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+
+                    <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                        <TextBlock Text="Automatic Sync Frequency"
+                                   Foreground="White" FontWeight="Medium"/>
+                        <TextBlock x:Name="TxtLastSyncInfo"
+                                   Text="Last sync: Never"
+                                   Foreground="#88FFFFFF" FontSize="11" Margin="0,2,0,0"/>
+                    </StackPanel>
+
+                    <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                        <ComboBox x:Name="CmbSyncFrequency" Width="175" Margin="0,0,10,0">
+                            <ComboBoxItem Content="Every hour"      Tag="Hourly"/>
+                            <ComboBoxItem Content="Only on startup" Tag="Startup"/>
+                            <ComboBoxItem Content="Manual only"     Tag="Manual"/>
+                        </ComboBox>
+
+                        <ui:Button x:Name="BtnSyncNow"
+                                   Content="Sync Now"
+                                   Icon="{ui:SymbolIcon ArrowSync24}"
+                                   Appearance="Secondary"
+                                   Click="BtnSyncNow_Click"/>
+                    </StackPanel>
+                </Grid>
+            </Border>
+
+            <!-- Steam: API Key + SteamID64 -->
+            <Border Style="{StaticResource Win11SettingsCard}">
+                <StackPanel>
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                        <ui:SymbolIcon Symbol="Games24" Foreground="#66C0F4" Margin="0,0,8,0"/>
+                        <TextBlock Text="Steam Integration" Foreground="White" FontWeight="SemiBold"/>
+                    </StackPanel>
+
+                    <TextBlock Text="Steam Web API Key (from steamcommunity.com/dev/apikey)"
+                               Foreground="#AAFFFFFF" FontSize="11" Margin="0,0,0,4"/>
+                    <ui:PasswordBox x:Name="TxtSteamApiKey"
+                                    PlaceholderText="Enter your 32-character Steam API Key..."
+                                    Margin="0,0,0,10"/>
+
+                    <TextBlock Text="SteamID64 (17-digit profile ID)"
+                               Foreground="#AAFFFFFF" FontSize="11" Margin="0,0,0,4"/>
+                    <ui:TextBox x:Name="TxtSteamId64"
+                                PlaceholderText="e.g. 76561198000000000"
+                                ClearButtonEnabled="True"/>
+                </StackPanel>
+            </Border>
+
+            <!-- PlayStation Network: NPSSO token -->
+            <Border Style="{StaticResource Win11SettingsCard}">
+                <StackPanel>
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                        <ui:SymbolIcon Symbol="Trophy24" Foreground="#0070D1" Margin="0,0,8,0"/>
+                        <TextBlock Text="PlayStation Network (PSN)" Foreground="White" FontWeight="SemiBold"/>
+                    </StackPanel>
+
+                    <TextBlock Text="PSN NPSSO Token (64-character token from ca.account.sony.com/api/v1/ssocookie)"
+                               Foreground="#AAFFFFFF" FontSize="11" Margin="0,0,0,4"/>
+                    <ui:PasswordBox x:Name="TxtPsnNpsso"
+                                    PlaceholderText="Enter your 64-character NPSSO token..."/>
+                </StackPanel>
+            </Border>
+
+            <!-- Xbox Network: OpenXBL API key -->
+            <Border Style="{StaticResource Win11SettingsCard}">
+                <StackPanel>
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                        <ui:SymbolIcon Symbol="Sparkle24" Foreground="#107C10" Margin="0,0,8,0"/>
+                        <TextBlock Text="Xbox Network (OpenXBL)" Foreground="White" FontWeight="SemiBold"/>
+                    </StackPanel>
+
+                    <TextBlock Text="OpenXBL API Key (from xbl.io)"
+                               Foreground="#AAFFFFFF" FontSize="11" Margin="0,0,0,4"/>
+                    <ui:PasswordBox x:Name="TxtOpenXblApiKey"
+                                    PlaceholderText="Enter your OpenXBL API Key..."/>
+                </StackPanel>
+            </Border>
+
+            <!-- SteamGridDB: cover art API key -->
+            <Border Style="{StaticResource Win11SettingsCard}">
+                <StackPanel>
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                        <ui:SymbolIcon Symbol="Image24" Foreground="#E6A100" Margin="0,0,8,0"/>
+                        <TextBlock Text="SteamGridDB (High-Res 600x900 Covers)" Foreground="White" FontWeight="SemiBold"/>
+                    </StackPanel>
+
+                    <TextBlock Text="SteamGridDB API Key (from steamgriddb.com/profile/preferences/api)"
+                               Foreground="#AAFFFFFF" FontSize="11" Margin="0,0,0,4"/>
+                    <ui:PasswordBox x:Name="TxtSteamGridDbApiKey"
+                                    PlaceholderText="Enter your SteamGridDB API Key..."/>
+                </StackPanel>
+            </Border>
+
+            <!-- Save Sync Settings action bar -->
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,4,0,8">
+                <TextBlock x:Name="TxtSaveSyncStatus"
+                           Text="Sync settings saved!"
+                           Foreground="#6CCB5F"
+                           VerticalAlignment="Center"
+                           Margin="0,0,12,0"
+                           Visibility="Collapsed"/>
+                <ui:Button x:Name="BtnSaveSyncSettings"
+                           Content="Save Sync Settings"
+                           Icon="{ui:SymbolIcon Save24}"
+                           Appearance="Primary"
+                           Padding="18,8"
+                           Click="BtnSaveSyncSettings_Click"/>
+            </StackPanel>
+
+        </StackPanel>
+    </ScrollViewer>
+
+</UserControl>
