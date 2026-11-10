@@ -120,7 +120,7 @@ namespace GameStartMenu.Library
             OnLibraryUpdated?.Invoke(GetSortedGames());
         }
 
-        // 1. Avvio istantaneo: legge la cache su disco + controlla i file .acf di Steam (impiega ~20ms totali!)
+        // 1. Fast startup: reads the on-disk cache then scans local Steam / Xbox installs (~20ms, no network).
         public void LoadCacheAndLocalGames()
         {
             try
@@ -137,6 +137,26 @@ namespace GameStartMenu.Library
                 }
             }
             catch { }
+
+            // Restore ActionType for any game that has a launch command configured.
+            // If the user specified a local executable (e.g. on a PlayStation, Xbox, or custom game),
+            // ensure it is marked as IsCustomGame and Executable. This heals existing cache entries
+            // where ActionType was erroneously reset to DisplayOnly.
+            foreach (var g in _library.Values)
+            {
+                if (!string.IsNullOrEmpty(g.LaunchCommand))
+                {
+                    if (!g.LaunchCommand.StartsWith("steam://", StringComparison.OrdinalIgnoreCase))
+                    {
+                        g.IsCustomGame = true;
+                        g.ActionType = GameActionType.Executable;
+                    }
+                }
+                else if (g.IsCustomGame)
+                {
+                    g.ActionType = GameActionType.DisplayOnly;
+                }
+            }
 
             var installedSteamIds = PlatformProviders.SyncSteamLocal(_library);
             var installedXboxIds = PlatformProviders.SyncXboxLocal(_library);
@@ -226,9 +246,11 @@ namespace GameStartMenu.Library
                 WriteIndented = true,
                 Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping
             };
-            File.WriteAllText(AppConfig.CacheFilePath, JsonSerializer.Serialize(GetSortedGames(), options));
-
-
+            // Serialize the entire library — not GetSortedGames() — so the active ShowFilter
+            // cannot silently drop games that temporarily don't match it (e.g. custom games
+            // marked DisplayOnly because their drive was offline at startup).
+            File.WriteAllText(AppConfig.CacheFilePath,
+                JsonSerializer.Serialize(_library.Values.ToList(), options));
         }
 
         // Aggiorna i parametri di lancio e/o la copertina personalizzata di un gioco esistente

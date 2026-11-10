@@ -24,8 +24,8 @@ namespace GameStartMenu.Library
             var installedAppIds = new HashSet<string>();
             if (!OperatingSystem.IsWindows()) return installedAppIds;
 
-            // Resetta solo i giochi automatici di Steam, senza MAI toccare i giochi esterni aggiunti a mano!
-            foreach (var g in library.Values.Where(x => !x.IsCustomGame))
+            // Reset only games managed by Steam (i.e. launched via steam://) before scanning
+            foreach (var g in library.Values.Where(x => x.LaunchCommand != null && x.LaunchCommand.StartsWith("steam://", StringComparison.OrdinalIgnoreCase)))
                 g.ActionType = GameActionType.DisplayOnly;
 
             string? steamPath = Registry.GetValue(@"HKEY_CURRENT_USER\Software\Valve\Steam", "SteamPath", null) as string;
@@ -542,18 +542,11 @@ namespace GameStartMenu.Library
                 if (game.ActionType != GameActionType.Executable)
                     continue;
 
-                // Se è un gioco aggiunto manualmente dall'utente, verifichiamo solo se il file .exe esiste ancora
+                // Custom games are managed entirely by the user through settings.
+                // Skip them here — ActionType is re-derived from LaunchCommand on load,
+                // so we never accidentally demote a user-configured game to DisplayOnly.
                 if (game.IsCustomGame)
-                {
-                    if (!string.IsNullOrEmpty(game.LaunchCommand) &&
-                        !game.LaunchCommand.Contains("://") &&
-                        !File.Exists(game.LaunchCommand))
-                    {
-                        game.ActionType = GameActionType.DisplayOnly;
-                        game.LaunchCommand = null;
-                    }
                     continue;
-                }
 
                 string cmd = game.LaunchCommand ?? "";
 
