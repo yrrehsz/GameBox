@@ -23,11 +23,29 @@ namespace GameStartMenu
         private double _anchorX = -1;
         private bool _isInitializing = true;
 
-        
+
         private readonly GameLibraryService _libraryService = new GameLibraryService();
         private readonly ControllerDetector _controllerDetector;
 
         private SettingsWindow? _settingsWindow;
+
+        [DllImport("user32.dll")]
+        private static extern IntPtr GetForegroundWindow();
+
+        [DllImport("user32.dll")]
+        private static extern uint GetWindowThreadProcessId(IntPtr hWnd, IntPtr ProcessId);
+
+        [DllImport("kernel32.dll")]
+        private static extern uint GetCurrentThreadId();
+
+        [DllImport("user32.dll")]
+        private static extern bool AttachThreadInput(uint idAttach, uint idAttachTo, bool fAttach);
+
+        [DllImport("user32.dll")]
+        private static extern bool SetForegroundWindow(IntPtr hWnd);
+
+        [DllImport("user32.dll")]
+        private static extern bool BringWindowToTop(IntPtr hWnd);
 
         [DllImport("user32.dll")]
         private static extern bool GetCursorPos(out POINT lpPoint);
@@ -49,6 +67,20 @@ namespace GameStartMenu
             public int SizeOfData;
         }
 
+        [DllImport("user32.dll")]
+        private static extern void keybd_event(byte bVk, byte bScan, uint dwFlags, UIntPtr dwExtraInfo);
+
+        [DllImport("user32.dll")]
+        private static extern short GetAsyncKeyState(int vKey);
+
+        private const byte VK_MENU = 0x12; // Tasto ALT virtuale
+        private const uint KEYEVENTF_EXTENDEDKEY = 0x0001;
+        private const uint KEYEVENTF_KEYUP = 0x0002;
+        private const int VK_LBUTTON = 0x01; // Clic sinistro mouse
+        private const int VK_RBUTTON = 0x02; // Clic destro mouse
+
+        private System.Windows.Threading.DispatcherTimer? _outsideClickTimer;
+
         [StructLayout(LayoutKind.Sequential)]
         internal struct AccentPolicy
         {
@@ -66,11 +98,27 @@ namespace GameStartMenu
 
             _controllerDetector.OnControllersChanged += AggiornaUIController;
             _controllerDetector.Start();
+
+            _controllerDetector.OnToggleMenuShortcutPressed += () =>
+            {
+                Application.Current?.Dispatcher.Invoke(() =>
+                {
+                    if (_isMenuOpen)
+                    {
+                        ChiudiMenu();
+                    }
+                    else
+                    {
+                        ApriMenu();
+                    }
+                });
+            };
+
             _libraryService.OnLibraryUpdated += AggiornaGrigliaGiochi;
             _libraryService.LoadCacheAndLocalGames();
 
             _libraryService.Config.ControllerIcons["TEST_XBOX_ID"] = "pack://application:,,,/assets/controllers/xbox/special/fh5.png";
-_libraryService.Config.Save();
+            _libraryService.Config.Save();
 
             // Header events
             HeaderView.SetActiveFilters(_libraryService.Config.ShowFilter);
@@ -83,7 +131,7 @@ _libraryService.Config.Save();
             LibraryView.OnPlayGameRequested += AvviaGioco;
             LibraryView.OnPlayModdedRequested += AvviaGiocoModdato;
 
-            
+
 
             // Footer events
             FooterView.BtnSync.Click += BtnSync_Click;
@@ -203,7 +251,9 @@ class Program {{
             this.Show();
             this.WindowState = WindowState.Normal;
             PosizionaSopraIcona();
-            this.Activate();
+
+            ForzaFocusReale();
+            AvviaControlloClickEsterno();
 
             DoubleAnimation slideUp = new DoubleAnimation
             {
@@ -228,6 +278,7 @@ class Program {{
         {
             if (!_isMenuOpen) return;
             _isMenuOpen = false;
+            _outsideClickTimer?.Stop();
 
             DoubleAnimation slideDown = new DoubleAnimation
             {
@@ -255,6 +306,8 @@ class Program {{
             SlideTransform.BeginAnimation(TranslateTransform.YProperty, slideDown);
             MainContentGrid.BeginAnimation(UIElement.OpacityProperty, fadeOut);
         }
+
+        
 
         private void PosizionaSopraIcona()
         {
@@ -480,7 +533,7 @@ class Program {{
             {
                 // 1. Rilegge eventuali nuovi giochi installati in locale
                 _libraryService.LoadCacheAndLocalGames();
-                
+
 
                 // 2. Forza la sincronizzazione Cloud (Steam, PlayStation, Xbox) e scarica le cover mancanti
                 await _libraryService.SyncCloudIfNeededAsync(force: true);
@@ -494,7 +547,7 @@ class Program {{
             }
         }
 
-        
+
 
         private void BtnSettings_Click(object sender, RoutedEventArgs e)
         {
@@ -519,6 +572,63 @@ class Program {{
             }
         }
 
-        
+        private void ForzaFocusReale()
+        {
+            IntPtr hwnd = new WindowInteropHelper(this).Handle;
+
+            // Trucco ufficiale Win32: invia un impulso invisibile del tasto ALT
+            // Questo costringe Windows 11 a sbloccare il Foreground Lock anche se chiamato da XInput!
+            keybd_event(VK_MENU, 0, KEYEVENTF_EXTENDEDKEY, UIntPtr.Zero);
+            keybd_event(VK_MENU, 0, KEYEVENTF_EXTENDEDKEY | KEYEVENTF_KEYUP, UIntPtr.Zero);
+
+            SetForegroundWindow(hwnd);
+            BringWindowToTop(hwnd);
+
+            this.Topmost = true;
+            this.Activate();
+            this.Focus();
+        }
+
+        private void AvviaControlloClickEsterno()
+        {
+            if (_outsideClickTimer == null)
+            {
+                _outsideClickTimer = new System.Windows.Threading.DispatcherTimer
+                {
+                    Interval = TimeSpan.FromMilliseconds(50)
+                };
+
+                _outsideClickTimer.Tick += (s, e) =>
+                {
+                    if (!_isMenuOpen || _ignoreDeactivate) return;
+
+                    bool mouseClicked = (GetAsyncKeyState(VK_LBUTTON) & 0x8000) != 0 ||
+                                        (GetAsyncKeyState(VK_RBUTTON) & 0x8000) != 0;
+
+                    if (mouseClicked && GetCursorPos(out POINT pt))
+                    {
+                        var source = PresentationSource.FromVisual(this);
+                        double dpiX = source?.CompositionTarget?.TransformFromDevice.M11 ?? 1.0;
+                        double dpiY = source?.CompositionTarget?.TransformFromDevice.M22 ?? 1.0;
+
+                        double mouseX = pt.X * dpiX;
+                        double mouseY = pt.Y * dpiY;
+
+                        bool isInsideWindow = mouseX >= this.Left && mouseX <= (this.Left + this.Width) &&
+                                              mouseY >= this.Top && mouseY <= (this.Top + this.Height);
+
+                        if (!isInsideWindow)
+                        {
+                            _lastDeactivatedTime = DateTime.Now;
+                            ChiudiMenu();
+                        }
+                    }
+                };
+            }
+
+            _outsideClickTimer.Start();
+        }
+
+
     }
 }

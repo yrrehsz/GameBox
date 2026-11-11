@@ -33,10 +33,33 @@ namespace GameStartMenu
     public class ControllerDetector
     {
         private readonly System.Timers.Timer _pollTimer;
+        private readonly System.Timers.Timer _inputTimer;
+        private bool _wasComboPressed = false;
         private string _lastStateSignature = "INIT";
         private readonly Dictionary<string, string> _customIcons;
 
+        public event Action? OnToggleMenuShortcutPressed;
+
+        private const ushort XINPUT_GAMEPAD_START = 0x0010;
+        private const ushort XINPUT_GAMEPAD_BACK  = 0x0020;
+        private const ushort XINPUT_GAMEPAD_GUIDE = 0x0400;
+
         public event Action<List<ControllerInfo>>? OnControllersChanged;
+
+        [StructLayout(LayoutKind.Sequential)]
+        private struct XINPUT_GAMEPAD
+        {
+            public ushort wButtons;
+            public byte bLeftTrigger;
+            public byte bRightTrigger;
+            public short sThumbLX;
+            public short sThumbLY;
+            public short sThumbRX;
+            public short sThumbRY;
+        }
+
+        [DllImport("xinput1_4.dll", EntryPoint = "#100")]
+        private static extern uint XInputGetStateEx(uint dwUserIndex, out XINPUT_STATE pState);
 
         // --- P/INVOKE XINPUT ---
         [StructLayout(LayoutKind.Sequential)]
@@ -50,8 +73,8 @@ namespace GameStartMenu
         private struct XINPUT_STATE
         {
             public uint dwPacketNumber;
-            [MarshalAs(UnmanagedType.ByValArray, SizeConst = 12)]
-            public byte[] Gamepad;
+            public XINPUT_GAMEPAD Gamepad;
+            
         }
 
         [DllImport("xinput1_4.dll", EntryPoint = "XInputGetState")]
@@ -100,12 +123,16 @@ namespace GameStartMenu
             _customIcons = customIcons ?? new Dictionary<string, string>();
             _pollTimer = new System.Timers.Timer(2000);
             _pollTimer.Elapsed += (s, e) => CheckControllers();
+
+            _inputTimer = new System.Timers.Timer(45);
+            _inputTimer.Elapsed += (s, e) => CheckControllerShortcuts();
         }
 
         public void Start()
         {
             CheckControllers();
             _pollTimer.Start();
+            _inputTimer.Start();
         }
 
         private void CheckControllers()
@@ -321,6 +348,43 @@ namespace GameStartMenu
             }
 
             return sortedList;
+        }
+
+        private void CheckControllerShortcuts()
+        {
+            bool isShortcutActiveNow = false;
+
+            for (uint slot = 0; slot < 4; slot++)
+            {
+                if (XInputGetStateEx(slot, out XINPUT_STATE state) == 0)
+                {
+                    ushort buttons = state.Gamepad.wButtons;
+
+                    // Opzione A: Start + Select premuti contemporaneamente
+                    bool startAndSelect = (buttons & XINPUT_GAMEPAD_START) != 0 &&
+                                          (buttons & XINPUT_GAMEPAD_BACK) != 0;
+
+                    // Opzione B: Tasto centrale Xbox / PlayStation (se vuoi abilitare anche questo, lascia || guideButton)
+                    bool guideButton = (buttons & XINPUT_GAMEPAD_GUIDE) != 0;
+
+                    if (startAndSelect)
+                    {
+                        isShortcutActiveNow = true;
+                        break;
+                    }
+                }
+            }
+
+            // Scatta solo una volta sul fronte di salita (quando premi i tasti, evitando ripetizioni se li tieni premuti)
+            if (isShortcutActiveNow && !_wasComboPressed)
+            {
+                _wasComboPressed = true;
+                OnToggleMenuShortcutPressed?.Invoke();
+            }
+            else if (!isShortcutActiveNow)
+            {
+                _wasComboPressed = false;
+            }
         }
 
         private static ulong ExtractBluetoothMac(string devId)
