@@ -73,10 +73,10 @@ namespace GameStartMenu
 _libraryService.Config.Save();
 
             // Header events
-            SelezionaComboPerTag(HeaderView.CmbShowFilter, _libraryService.Config.ShowFilter);
+            HeaderView.SetActiveFilters(_libraryService.Config.ShowFilter);
             SelezionaComboPerTag(HeaderView.CmbOrderBy, _libraryService.Config.OrderBy);
             HeaderView.SearchBox.TextChanged += SearchBox_TextChanged;
-            HeaderView.CmbShowFilter.SelectionChanged += FilterOrSort_SelectionChanged;
+            HeaderView.FilterChanged += _ => ApplyViewSettings();
             HeaderView.CmbOrderBy.SelectionChanged += FilterOrSort_SelectionChanged;
 
             // Library events
@@ -411,12 +411,17 @@ class Program {{
 
         private void FilterOrSort_SelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
         {
-            if (_isInitializing || HeaderView?.CmbShowFilter == null || HeaderView?.CmbOrderBy == null) return;
+            ApplyViewSettings();
+        }
 
-            string showTag = (HeaderView.CmbShowFilter.SelectedItem as System.Windows.Controls.ComboBoxItem)?.Tag?.ToString() ?? "All";
+        private void ApplyViewSettings()
+        {
+            if (_isInitializing || HeaderView?.CmbOrderBy == null) return;
+
+            string showFilterCsv = HeaderView.GetActiveFilterCsv();
             string orderTag = (HeaderView.CmbOrderBy.SelectedItem as System.Windows.Controls.ComboBoxItem)?.Tag?.ToString() ?? "Default";
 
-            _libraryService.UpdateViewSettings(showTag, orderTag);
+            _libraryService.UpdateViewSettings(showFilterCsv, orderTag);
         }
 
         private void AvviaGioco(UnifiedGame game)

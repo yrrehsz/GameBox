@@ -8,22 +8,36 @@ using System.Threading.Tasks;
 
 namespace GameStartMenu.Library
 {
+    /// <summary>
+    /// Core service managing the game library: aggregation across platforms, searching,
+    /// sorting, background cloud synchronization, and local JSON caching.
+    /// </summary>
     public class GameLibraryService
     {
+        // =====================================================================
+        // State & Events
+        // =====================================================================
+
         private readonly Dictionary<string, UnifiedGame> _library = new();
         private bool _isSyncingCloud = false;
-
+        private string _searchQuery = "";
         private readonly System.Timers.Timer _hourlySyncTimer;
 
         public AppConfig Config { get; private set; }
+
+        /// <summary>Raised whenever games are loaded, filtered, sorted, or synchronized.</summary>
         public event Action<List<UnifiedGame>>? OnLibraryUpdated;
+
+        // =====================================================================
+        // Constructor & Timer Setup
+        // =====================================================================
 
         public GameLibraryService()
         {
             Config = AppConfig.Load();
             ApplyOverlayPriority(Config.OverlayPriority);
 
-            // Timer che controlla ogni 5 minuti se è passata un'ora dall'ultimo sync (attivo solo se SyncFrequency == "Hourly")
+            // Timer checking every 5 minutes if 60 minutes have elapsed since the last sync
             _hourlySyncTimer = new System.Timers.Timer(TimeSpan.FromMinutes(5).TotalMilliseconds);
             _hourlySyncTimer.Elapsed += async (s, e) =>
             {
@@ -35,62 +49,73 @@ namespace GameStartMenu.Library
             _hourlySyncTimer.Start();
         }
 
-        // Restituisce i giochi già ordinati (Prima gli Eseguibili, poi i multipiattaforma, poi alfabetico)
-        // Restituisce i giochi filtrati e ordinati in base alle scelte salvate in settings.json!
-        private string _searchQuery = "";
+        // =====================================================================
+        // Search, Filter & Sort Queries
+        // =====================================================================
 
-        // Chiamato ad ogni lettera digitata nella barra di ricerca
+        /// <summary>Updates the active search query filter and triggers a library update.</summary>
         public void SetSearchQuery(string query)
         {
             _searchQuery = query?.Trim() ?? "";
             OnLibraryUpdated?.Invoke(GetSortedGames());
         }
 
-        // Restituisce i giochi filtrati e ordinati (con gli ESEGUIBILI sempre in cima!)
+        /// <summary>
+        /// Returns the game collection filtered by the search query and active ShowFilter,
+        /// and sorted according to the active OrderBy preference with runnable games prioritized.
+        /// </summary>
         public List<UnifiedGame> GetSortedGames()
         {
             IEnumerable<UnifiedGame> query = _library.Values;
 
-            // 1. FILTRO BARRA DI RICERCA (Istantaneo)
+            // 1. Search bar filter (instant)
             if (!string.IsNullOrWhiteSpace(_searchQuery))
             {
                 query = query.Where(g => g.DisplayTitle.Contains(_searchQuery, StringComparison.OrdinalIgnoreCase));
             }
 
-            // 2. FILTRO PIATTAFORMA / STATO (ShowFilter salvato in settings.json)
-            query = Config.ShowFilter switch
+            // 2. Platform / status filter (OR union across comma-separated tokens in ShowFilter)
+            if (!string.IsNullOrWhiteSpace(Config.ShowFilter) &&
+                !Config.ShowFilter.Equals("All", StringComparison.OrdinalIgnoreCase))
             {
-                "Executable" => query.Where(g => g.ActionType == GameActionType.Executable),
-                "Steam" => query.Where(g => g.Platforms.ContainsKey("Steam")),
-                "PlayStation" => query.Where(g => g.Platforms.ContainsKey("PlayStation")),
-                "Xbox" => query.Where(g => g.Platforms.ContainsKey("Xbox")),
-                "Completed100" => query.Where(g => g.TotalPlatinumsCount > 0),
-                _ => query // "All"
-            };
+                var activeFilters = Config.ShowFilter
+                    .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                    .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
-            // 3. REGOLA D'ORO: I giochi avviabili (Installati o con Mod/Emulatore) vanno SEMPRE in cima!
+                if (!activeFilters.Contains("All") && activeFilters.Count > 0)
+                {
+                    query = query.Where(g =>
+                        (activeFilters.Contains("Executable")   && g.IsRunnable) ||
+                        (activeFilters.Contains("Steam")        && g.Platforms.ContainsKey("Steam")) ||
+                        (activeFilters.Contains("PlayStation")  && g.Platforms.ContainsKey("PlayStation")) ||
+                        (activeFilters.Contains("Xbox")         && g.Platforms.ContainsKey("Xbox")) ||
+                        (activeFilters.Contains("Completed100") && g.TotalPlatinumsCount > 0));
+                }
+            }
+
+            // 3. Primary rule: runnable games (executable or with secondary launcher) are sorted first
             var primarySort = query.OrderByDescending(g => g.IsRunnable);
 
-            // 4. ORDINAMENTO SECONDARIO (OrderBy salvato in settings.json)
+            // 4. Secondary sort (OrderBy preference)
             query = Config.OrderBy switch
             {
-                "Alphabetical" => primarySort.ThenBy(g => g.DisplayTitle),
+                "Alphabetical"  => primarySort.ThenBy(g => g.DisplayTitle),
 
-                "Platinums" => primarySort.ThenByDescending(g => g.TotalPlatinumsCount)
+                "Platinums"     => primarySort.ThenByDescending(g => g.TotalPlatinumsCount)
                                               .ThenByDescending(g => g.MaxCompletionPercentage)
                                               .ThenBy(g => g.DisplayTitle),
 
                 "CompletionPct" => primarySort.ThenByDescending(g => g.MaxCompletionPercentage)
                                               .ThenBy(g => g.DisplayTitle),
 
-                _ => primarySort.ThenByDescending(g => g.Platforms.Count)
+                _               => primarySort.ThenByDescending(g => g.Platforms.Count)
                                               .ThenBy(g => g.DisplayTitle) // "Default"
             };
 
             return query.ToList();
         }
 
-        // Cambia filtro/ordinamento al volo, salva in settings.json e aggiorna la UI
+        /// <summary>Updates filter and sorting preferences on the fly, persists them, and refreshes UI.</summary>
         public void UpdateViewSettings(string showFilter, string orderBy)
         {
             Config.ShowFilter = showFilter;
@@ -99,28 +124,14 @@ namespace GameStartMenu.Library
             OnLibraryUpdated?.Invoke(GetSortedGames());
         }
 
-        // Permette di aggiungere un gioco esterno (.exe o URL) senza che venga mai cancellato dalla sync!
-        public async Task AddCustomGameAsync(string title, string exePathOrUrl)
-        {
-            var (key, cleanTitle) = TitleNormalizer.Normalize(title);
-            if (!_library.TryGetValue(key, out var game))
-            {
-                game = new UnifiedGame { NormalizedId = key, DisplayTitle = cleanTitle };
-                _library[key] = game;
-            }
+        // =====================================================================
+        // Fast Startup & Local Scanning
+        // =====================================================================
 
-            game.IsCustomGame = true;
-            game.ActionType = GameActionType.Executable;
-            game.LaunchCommand = exePathOrUrl;
-
-            // Scarica automaticamente la cover 600x900 da Steam / SteamGridDB anche per il gioco esterno!
-            await CoverCacheHelper.EnsureCoverCachedAsync(game, Config.SteamGridDbApiKey);
-
-            SaveCache();
-            OnLibraryUpdated?.Invoke(GetSortedGames());
-        }
-
-        // 1. Fast startup: reads the on-disk cache then scans local Steam / Xbox installs (~20ms, no network).
+        /// <summary>
+        /// Fast startup routine: reads the on-disk cache then scans local Steam and Xbox installs (~20ms, no network).
+        /// Heals custom games with configured local executables.
+        /// </summary>
         public void LoadCacheAndLocalGames()
         {
             try
@@ -138,10 +149,7 @@ namespace GameStartMenu.Library
             }
             catch { }
 
-            // Restore ActionType for any game that has a launch command configured.
-            // If the user specified a local executable (e.g. on a PlayStation, Xbox, or custom game),
-            // ensure it is marked as IsCustomGame and Executable. This heals existing cache entries
-            // where ActionType was erroneously reset to DisplayOnly.
+            // Restore ActionType for any game that has a local launch command configured
             foreach (var g in _library.Values)
             {
                 if (!string.IsNullOrEmpty(g.LaunchCommand))
@@ -161,7 +169,7 @@ namespace GameStartMenu.Library
             var installedSteamIds = PlatformProviders.SyncSteamLocal(_library);
             var installedXboxIds = PlatformProviders.SyncXboxLocal(_library);
             PlatformProviders.CleanupUninstalledGames(_library, installedSteamIds, installedXboxIds);
-            
+
             PurgeHiddenGames();
             SaveCache();
             OnLibraryUpdated?.Invoke(GetSortedGames());
@@ -176,25 +184,29 @@ namespace GameStartMenu.Library
             }
         }
 
-        // 2. Sincronizzazione Cloud (Eseguita solo se sono passati > 60 min o se forzata dall'utente)
+        // =====================================================================
+        // Cloud Synchronization
+        // =====================================================================
+
+        /// <summary>
+        /// Synchronizes cloud platforms (Steam, PlayStation, Xbox) if the configured interval has elapsed,
+        /// or immediately if forced by user action.
+        /// </summary>
         public async Task SyncCloudIfNeededAsync(bool force = false, bool isStartup = false)
         {
             if (_isSyncingCloud) return;
 
             if (!force)
             {
-                // Se l'utente ha scelto "Manual", non sincronizza mai in automatico
                 if (Config.SyncFrequency == "Manual")
                     return;
 
-                // Se ha scelto "Hourly", controlla che siano passati almeno 60 minuti
                 if (Config.SyncFrequency == "Hourly")
                 {
                     bool isExpired = (DateTime.UtcNow - Config.LastCloudSyncUtc).TotalMinutes >= 60;
                     if (!isExpired && _library.Count > 0)
                         return;
                 }
-                // Se ha scelto "Startup", sincronizza all'avvio (isStartup == true), ma ignora il timer orario
                 else if (Config.SyncFrequency == "Startup" && !isStartup)
                 {
                     return;
@@ -238,6 +250,10 @@ namespace GameStartMenu.Library
             }
         }
 
+        // =====================================================================
+        // Cache Persistence
+        // =====================================================================
+
         private void SaveCache()
         {
             Directory.CreateDirectory(AppConfig.AppDataFolder);
@@ -246,34 +262,43 @@ namespace GameStartMenu.Library
                 WriteIndented = true,
                 Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping
             };
-            // Serialize the entire library — not GetSortedGames() — so the active ShowFilter
-            // cannot silently drop games that temporarily don't match it (e.g. custom games
-            // marked DisplayOnly because their drive was offline at startup).
+            // Serialize the entire library so active filters never drop temporarily hidden items
             File.WriteAllText(AppConfig.CacheFilePath,
                 JsonSerializer.Serialize(_library.Values.ToList(), options));
         }
 
-        // Aggiorna i parametri di lancio e/o la copertina personalizzata di un gioco esistente
-        public void UpdateGameSettings(UnifiedGame game, string? launchCmd, string? modLaunchCmd, string? modDisplayName, string? newCoverFilePath = null)
+        // =====================================================================
+        // Custom Games & Cover Management
+        // =====================================================================
+
+        /// <summary>Adds a custom game pointing to a local executable or URL.</summary>
+        public async Task AddCustomGameAsync(string title, string exePathOrUrl)
         {
-            game.LaunchCommand = string.IsNullOrWhiteSpace(launchCmd) ? null : launchCmd.Trim();
-            game.ModLaunchCommand = string.IsNullOrWhiteSpace(modLaunchCmd) ? null : modLaunchCmd.Trim();
-            game.ModDisplayName = string.IsNullOrWhiteSpace(modDisplayName) ? "Play Modded" : modDisplayName.Trim();
-
-            game.ActionType = !string.IsNullOrEmpty(game.LaunchCommand) ? GameActionType.Executable : GameActionType.DisplayOnly;
-
-            // Sostituisce direttamente la cover originale e forza il refresh dell'immagine
-            if (!string.IsNullOrEmpty(newCoverFilePath))
+            var (key, cleanTitle) = TitleNormalizer.Normalize(title);
+            if (!_library.TryGetValue(key, out var game))
             {
-                SetCustomCover(game, newCoverFilePath);
+                game = new UnifiedGame { NormalizedId = key, DisplayTitle = cleanTitle };
+                _library[key] = game;
             }
+
+            game.IsCustomGame = true;
+            game.ActionType = GameActionType.Executable;
+            game.LaunchCommand = exePathOrUrl;
+
+            await CoverCacheHelper.EnsureCoverCachedAsync(game, Config.SteamGridDbApiKey);
 
             SaveCache();
             OnLibraryUpdated?.Invoke(GetSortedGames());
         }
 
-        // Aggiunge un nuovo gioco (con scelta se scaricare automaticamente la cover o usarne una locale)
-        public async Task<UnifiedGame> AddCustomGameWithOptionsAsync(string title, string exePathOrUrl, bool autoDownloadCover, string? customCoverPath)
+        /// <summary>
+        /// Adds a custom game with options for automatic cover downloading or a custom local artwork file.
+        /// </summary>
+        public async Task<UnifiedGame> AddCustomGameWithOptionsAsync(
+            string title,
+            string exePathOrUrl,
+            bool autoDownloadCover,
+            string? customCoverPath)
         {
             var (key, cleanTitle) = TitleNormalizer.Normalize(title);
             if (!_library.TryGetValue(key, out var game))
@@ -304,6 +329,31 @@ namespace GameStartMenu.Library
             return game;
         }
 
+        /// <summary>Updates launch commands, secondary launcher settings, and cover artwork for an existing game.</summary>
+        public void UpdateGameSettings(
+            UnifiedGame game,
+            string? launchCmd,
+            string? modLaunchCmd,
+            string? modDisplayName,
+            string? newCoverFilePath = null)
+        {
+            game.LaunchCommand = string.IsNullOrWhiteSpace(launchCmd) ? null : launchCmd.Trim();
+            game.ModLaunchCommand = string.IsNullOrWhiteSpace(modLaunchCmd) ? null : modLaunchCmd.Trim();
+            game.ModDisplayName = string.IsNullOrWhiteSpace(modDisplayName) ? "Play Modded" : modDisplayName.Trim();
+
+            game.ActionType = !string.IsNullOrEmpty(game.LaunchCommand)
+                ? GameActionType.Executable
+                : GameActionType.DisplayOnly;
+
+            if (!string.IsNullOrEmpty(newCoverFilePath))
+            {
+                SetCustomCover(game, newCoverFilePath);
+            }
+
+            SaveCache();
+            OnLibraryUpdated?.Invoke(GetSortedGames());
+        }
+
         private void SetCustomCover(UnifiedGame game, string sourceImagePath)
         {
             if (string.IsNullOrEmpty(sourceImagePath) || !File.Exists(sourceImagePath))
@@ -318,13 +368,10 @@ namespace GameStartMenu.Library
                 if (string.IsNullOrEmpty(ext)) ext = ".jpg";
                 string destPath = Path.Combine(coversDir, $"{game.NormalizedId}{ext}");
 
-                // Svuota prima il riferimento in memoria
                 game.ReloadCoverImage();
 
-                // Se l'utente non sta selezionando lo stesso identico file già presente in covers:
                 if (!string.Equals(Path.GetFullPath(sourceImagePath), Path.GetFullPath(destPath), StringComparison.OrdinalIgnoreCase))
                 {
-                    // Rimuove eventuale vecchia cover con estensione diversa (.png vs .jpg)
                     if (!string.IsNullOrEmpty(game.LocalCoverPath) &&
                         File.Exists(game.LocalCoverPath) &&
                         !string.Equals(Path.GetFullPath(game.LocalCoverPath), Path.GetFullPath(destPath), StringComparison.OrdinalIgnoreCase))
@@ -332,7 +379,6 @@ namespace GameStartMenu.Library
                         try { File.Delete(game.LocalCoverPath); } catch { }
                     }
 
-                    // Legge i byte e sovrascrive direttamente il file originale senza conflitti di lock
                     byte[] bytes = File.ReadAllBytes(sourceImagePath);
                     File.WriteAllBytes(destPath, bytes);
                 }
@@ -347,35 +393,43 @@ namespace GameStartMenu.Library
             }
         }
 
-        // Elimina definitivamente un gioco dalla libreria in memoria, dal JSON, cancella la cover e impedisce che riappaia al Sync!
+        /// <summary>
+        /// Permanently removes a game from memory, deletes its cached cover file, and adds it
+        /// to HiddenGames so cloud sync will not resurrect it.
+        /// </summary>
         public void DeleteGame(UnifiedGame game)
         {
             if (game == null) return;
 
-            // 1. Rimuove dal dizionario in memoria
             _library.Remove(game.NormalizedId);
 
-            // 2. Se non era solo un gioco custom (o per sicurezza generale), lo aggiunge a HiddenGames
-            // così Steam/PSN/Xbox non lo ricreano al prossimo Sync!
             if (!game.IsCustomGame || game.Platforms.Count > 0)
             {
                 Config.HiddenGames.Add(game.NormalizedId);
                 Config.Save();
             }
 
-            // 3. Elimina il file della copertina dalla cache su disco
             if (!string.IsNullOrEmpty(game.LocalCoverPath) && File.Exists(game.LocalCoverPath))
             {
                 try { File.Delete(game.LocalCoverPath); } catch { }
             }
 
-            // 4. Salva subito library_cache.json e aggiorna la UI
             SaveCache();
             OnLibraryUpdated?.Invoke(GetSortedGames());
         }
 
-        // Salva tutte le API Key e la frequenza di sincronizzazione
-        public void SaveSyncSettings(string syncFrequency, string steamApiKey, string steamId64, string psnNpsso, string openXblKey, string steamGridDbKey)
+        // =====================================================================
+        // Settings & Overlay Configuration
+        // =====================================================================
+
+        /// <summary>Saves all cloud API keys and sync frequency to settings.json.</summary>
+        public void SaveSyncSettings(
+            string syncFrequency,
+            string steamApiKey,
+            string steamId64,
+            string psnNpsso,
+            string openXblKey,
+            string steamGridDbKey)
         {
             Config.SyncFrequency = syncFrequency;
             Config.SteamApiKey = steamApiKey.Trim();
@@ -386,6 +440,7 @@ namespace GameStartMenu.Library
             Config.Save();
         }
 
+        /// <summary>Applies the overlay priority CSV string to UnifiedGame.GlobalOverlayPriority.</summary>
         public void ApplyOverlayPriority(string priorityCsv)
         {
             Config.OverlayPriority = string.IsNullOrWhiteSpace(priorityCsv) ? "Xbox,PlayStation,Steam" : priorityCsv;
@@ -401,13 +456,12 @@ namespace GameStartMenu.Library
             }
         }
 
+        /// <summary>Updates the overlay priority preference, saves configuration, and refreshes UI.</summary>
         public void UpdateOverlayPrioritySetting(string priorityCsv)
         {
             ApplyOverlayPriority(priorityCsv);
             Config.Save();
             OnLibraryUpdated?.Invoke(GetSortedGames());
         }
-
-
     }
 }

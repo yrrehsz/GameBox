@@ -7,13 +7,20 @@ using System.Threading.Tasks;
 
 namespace GameStartMenu.Library
 {
+    /// <summary>
+    /// Helper responsible for locating, downloading, and locally caching 600x900 vertical game covers
+    /// from Steam CDN, SteamGridDB API, or remote URLs.
+    /// </summary>
     public static class CoverCacheHelper
     {
-        private static readonly HttpClient Http = new HttpClient();
+        private static readonly HttpClient Http = new();
 
+        /// <summary>
+        /// Ensures a local 600x900 vertical cover image exists for the specified game entry,
+        /// trying Steam CDN, SteamGridDB API, and original platform URLs in priority order.
+        /// </summary>
         public static async Task EnsureCoverCachedAsync(UnifiedGame game, string steamGridDbKey = "")
         {
-
             if (!string.IsNullOrEmpty(game.LocalCoverPath) && File.Exists(game.LocalCoverPath))
                 return;
 
@@ -22,14 +29,14 @@ namespace GameStartMenu.Library
 
             string localPath = Path.Combine(coversDir, $"{game.NormalizedId}.jpg");
 
-            // 1. Se abbiamo già il file valido su disco, usiamo quello
+            // 1. If a valid cached file already exists on disk (>1 KB), use it
             if (File.Exists(localPath) && new FileInfo(localPath).Length > 1024)
             {
                 game.LocalCoverPath = localPath;
                 return;
             }
 
-            // PASSO A: Se il gioco è già su Steam, abbiamo già l'AppID esatto in ExtraInfo!
+            // Step A: If the game is already in the Steam platform dictionary, use its AppID
             string? steamAppId = null;
             if (game.Platforms.TryGetValue("Steam", out var steamPlat) &&
                 int.TryParse(steamPlat.ExtraInfo, out _))
@@ -37,18 +44,18 @@ namespace GameStartMenu.Library
                 steamAppId = steamPlat.ExtraInfo;
             }
 
-            // PASSO B: Se è un gioco Xbox/PS, cerchiamo l'AppID su Steam con MATCH ESATTO (non prende Hades 2 per Hades!)
+            // Step B: For Xbox/PS games without a Steam AppID, search Steam Store with exact title matching
             if (string.IsNullOrEmpty(steamAppId))
             {
                 var (foundId, englishName) = await FindExactSteamGameAsync(game.DisplayTitle, game.NormalizedId);
                 steamAppId = foundId;
 
-                // Se Steam ha trovato il gioco, aggiorniamo anche il titolo con il vero nome originale inglese!
+                // If found on Steam, update DisplayTitle with the official English name
                 if (!string.IsNullOrEmpty(englishName))
                     game.DisplayTitle = englishName;
             }
 
-            // PASSO C: Proviamo a scaricare la copertina verticale 600x900 aggiornata da Steam
+            // Step C: Try downloading the vertical 600x900 cover from Steam CDN
             if (!string.IsNullOrEmpty(steamAppId))
             {
                 if (await TryDownloadSteamVerticalCoverAsync(steamAppId, localPath))
@@ -58,8 +65,7 @@ namespace GameStartMenu.Library
                 }
             }
 
-            // PASSO D: Se il gioco NON esiste su Steam (es. Minecraft, COD Black Ops 4, Bloodborne),
-            // usiamo SteamGridDB per ottenere comunque una copertina 600x900 verticale perfetta!
+            // Step D: If the game is not on Steam (e.g. Minecraft, Bloodborne), query SteamGridDB
             if (!string.IsNullOrEmpty(steamGridDbKey))
             {
                 if (await TryDownloadFromSteamGridDbAsync(game.DisplayTitle, steamGridDbKey, localPath))
@@ -69,7 +75,7 @@ namespace GameStartMenu.Library
                 }
             }
 
-            // PASSO E: Ultimo fallback sull'immagine originale (forzando HTTPS per Minecraft!)
+            // Step E: Final fallback to original platform image URL (forcing HTTPS)
             if (!string.IsNullOrEmpty(game.CoverUrl))
             {
                 string safeUrl = game.CoverUrl.Replace("http://", "https://");
@@ -81,7 +87,10 @@ namespace GameStartMenu.Library
             }
         }
 
-        // Cerca il gioco sullo Store di Steam confrontando la chiave normalizzata (evita Hades -> Hades II)
+        /// <summary>
+        /// Searches the Steam Store API for an exact match against targetNormalizedId,
+        /// avoiding false-positive sequel matches (e.g. matching Hades II when searching for Hades).
+        /// </summary>
         private static async Task<(string? appId, string? officialEnglishName)> FindExactSteamGameAsync(string title, string targetNormalizedId)
         {
             try
@@ -95,7 +104,7 @@ namespace GameStartMenu.Library
                 if (!doc.RootElement.TryGetProperty("items", out var items) || items.GetArrayLength() == 0)
                     return (null, null);
 
-                // 1° Giro: Cerchiamo la corrispondenza ESATTA (es. "hades" == "hades", scarta "hadesii")
+                // Pass 1: exact normalized key match (e.g. "hades" == "hades", rejecting "hadesii")
                 foreach (var item in items.EnumerateArray())
                 {
                     string itemName = item.GetProperty("name").GetString() ?? "";
@@ -107,13 +116,12 @@ namespace GameStartMenu.Library
                     }
                 }
 
-                // 2° Giro: Accettiamo un match parziale solo se uno contiene l'altro E non c'è un numero finale diverso (es. 2, 3, II, III, IV)
+                // Pass 2: prefix match only if difference is within 3 characters and no conflicting suffix
                 foreach (var item in items.EnumerateArray())
                 {
                     string itemName = item.GetProperty("name").GetString() ?? "";
                     var (itemKey, cleanEnglish) = TitleNormalizer.Normalize(itemName);
 
-                    // Evita che cercando "Call of Duty Black Ops 4" prenda "Call of Duty Black Ops III"
                     if (itemKey.StartsWith(targetNormalizedId) && Math.Abs(itemKey.Length - targetNormalizedId.Length) <= 3)
                     {
                         return (item.GetProperty("id").GetInt32().ToString(), cleanEnglish);
@@ -125,10 +133,11 @@ namespace GameStartMenu.Library
             return (null, null);
         }
 
-        // Scarica la copertina 600x900 da Steam usando il CDN Cloudflare (che non blocca con vecchie versioni Early Access)
+        /// <summary>
+        /// Attempts to download a 600x900 vertical cover image from Steam CDN endpoints (Cloudflare and Akamai).
+        /// </summary>
         private static async Task<bool> TryDownloadSteamVerticalCoverAsync(string appId, string localPath)
         {
-            // Proviamo sia il CDN Cloudflare aggiornato (2x HD e standard) sia Akamai
             string[] candidateUrls = new[]
             {
                 $"https://cdn.cloudflare.steamstatic.com/steam/apps/{appId}/library_600x900_2x.jpg",
@@ -144,12 +153,14 @@ namespace GameStartMenu.Library
             return false;
         }
 
-        // Scarica una copertina verticale 600x900 da SteamGridDB per giochi non-Steam (Minecraft, BO4, Bloodborne, ecc.)
+        /// <summary>
+        /// Downloads a 600x900 vertical grid artwork from SteamGridDB for non-Steam titles.
+        /// </summary>
         private static async Task<bool> TryDownloadFromSteamGridDbAsync(string gameTitle, string apiKey, string localPath)
         {
             try
             {
-                // 1. Cerca l'ID del gioco su SteamGridDB
+                // 1. Search for game ID on SteamGridDB
                 string searchUrl = $"https://www.steamgriddb.com/api/v2/search/autocomplete/{Uri.EscapeDataString(gameTitle)}";
                 using var searchReq = new HttpRequestMessage(HttpMethod.Get, searchUrl);
                 searchReq.Headers.Authorization = new AuthenticationHeaderValue("Bearer", apiKey.Trim());
@@ -163,7 +174,7 @@ namespace GameStartMenu.Library
 
                 int sgdbGameId = dataArr[0].GetProperty("id").GetInt32();
 
-                // 2. Chiede le griglie verticali 600x900 ufficiali/più votate per quell'ID
+                // 2. Request official/top-rated 600x900 vertical grids
                 string gridsUrl = $"https://www.steamgriddb.com/api/v2/grids/game/{sgdbGameId}?dimensions=600x900&mimes=image/jpeg,image/png";
                 using var gridsReq = new HttpRequestMessage(HttpMethod.Get, gridsUrl);
                 gridsReq.Headers.Authorization = new AuthenticationHeaderValue("Bearer", apiKey.Trim());
@@ -185,6 +196,9 @@ namespace GameStartMenu.Library
             return false;
         }
 
+        /// <summary>
+        /// Downloads binary data from a URL and saves it to localPath if response is valid (>2 KB).
+        /// </summary>
         private static async Task<bool> TryDownloadUrlAsync(string url, string localPath)
         {
             try
@@ -193,7 +207,6 @@ namespace GameStartMenu.Library
                 if (!resp.IsSuccessStatusCode) return false;
 
                 byte[] bytes = await resp.Content.ReadAsByteArrayAsync();
-                // Verifica che non sia un'immagine vuota o corrotta (> 2 KB)
                 if (bytes.Length > 2048)
                 {
                     await File.WriteAllBytesAsync(localPath, bytes);

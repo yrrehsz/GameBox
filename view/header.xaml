@@ -3,7 +3,74 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml">
 
-    <!-- Contenitore leggermente più scuro con bordo inferiore grigio scuro -->
+    <UserControl.Resources>
+        <!-- Windows 11-style icon filter CheckBox: rounded square hover/checked highlight with bottom active pill -->
+        <Style x:Key="Win11HeaderFilterCheckBox" TargetType="CheckBox">
+            <Setter Property="Width" Value="36"/>
+            <Setter Property="Height" Value="36"/>
+            <Setter Property="Margin" Value="2,0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Foreground" Value="#DDFFFFFF"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="CheckBox">
+                        <Border x:Name="BtnBox"
+                                Background="{TemplateBinding Background}"
+                                CornerRadius="6"
+                                BorderThickness="1"
+                                BorderBrush="Transparent">
+                            <Grid>
+                                <ContentPresenter x:Name="IconHost"
+                                                  Opacity="0.68"
+                                                  HorizontalAlignment="Center"
+                                                  VerticalAlignment="Center"/>
+
+                                <!-- Subtle Win11-style bottom accent indicator when filter is active -->
+                                <Border x:Name="ActiveIndicator"
+                                        Width="14"
+                                        Height="2.5"
+                                        CornerRadius="1.25"
+                                        Background="#60CDFF"
+                                        HorizontalAlignment="Center"
+                                        VerticalAlignment="Bottom"
+                                        Margin="0,0,0,2.5"
+                                        Visibility="Collapsed"/>
+                            </Grid>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="BtnBox" Property="Background" Value="#1AFFFFFF"/>
+                                <Setter TargetName="BtnBox" Property="BorderBrush" Value="#18FFFFFF"/>
+                                <Setter TargetName="IconHost" Property="Opacity" Value="1.0"/>
+                                <Setter Property="Foreground" Value="White"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="BtnBox" Property="Background" Value="#0DFFFFFF"/>
+                            </Trigger>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="BtnBox" Property="Background" Value="#2260CDFF"/>
+                                <Setter TargetName="BtnBox" Property="BorderBrush" Value="#60CDFF"/>
+                                <Setter TargetName="ActiveIndicator" Property="Visibility" Value="Visible"/>
+                                <Setter TargetName="IconHost" Property="Opacity" Value="1.0"/>
+                                <Setter Property="Foreground" Value="White"/>
+                            </Trigger>
+                            <MultiTrigger>
+                                <MultiTrigger.Conditions>
+                                    <Condition Property="IsChecked" Value="True"/>
+                                    <Condition Property="IsMouseOver" Value="True"/>
+                                </MultiTrigger.Conditions>
+                                <Setter TargetName="BtnBox" Property="Background" Value="#3060CDFF"/>
+                                <Setter TargetName="BtnBox" Property="BorderBrush" Value="#88DCFF"/>
+                            </MultiTrigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </UserControl.Resources>
+
+    <!-- Top header bar with subtle dark acrylic tint and bottom divider -->
     <Border Background="#40000000"
             BorderBrush="#4E111111"
             BorderThickness="0,0,0,1"
@@ -12,12 +79,11 @@
 
         <Grid>
             <Grid.ColumnDefinitions>
-                <!-- La barra di ricerca occupa circa metà larghezza -->
                 <ColumnDefinition Width="*"/>
                 <ColumnDefinition Width="Auto"/>
             </Grid.ColumnDefinitions>
 
-            <!-- 1. BARRA DI RICERCA A SINISTRA (Dimezzata) -->
+            <!-- 1. Search bar on the left -->
             <ui:TextBox x:Name="SearchBox"
                         Grid.Column="0"
                         MaxWidth="420"
@@ -28,33 +94,64 @@
                         ClearButtonEnabled="True"
                         Margin="0,0,20,0"/>
 
-            <!-- 2. I 2 DROPDOWN MENU A DESTRA DELLA SEARCH BAR -->
+            <!-- 2. Filter icon checkboxes + Sort dropdown on the right -->
             <StackPanel Grid.Column="1"
                         Orientation="Horizontal"
                         VerticalAlignment="Center"
                         HorizontalAlignment="Right">
-                
-                <TextBlock Text="Show:"
-                           Foreground="#AAFFFFFF"
-                           FontSize="12"
-                           VerticalAlignment="Center"
-                           Margin="0,0,6,0"/>
-                <ComboBox x:Name="CmbShowFilter"
-                          Width="150"
-                          Margin="0,0,14,0">
-                    <ComboBoxItem Content="All games" Tag="All"/>
-                    <ComboBoxItem Content="Installed games" Tag="Executable"/>
-                    <ComboBoxItem Content="100% completed" Tag="Completed100"/>
-                    <ComboBoxItem Content="Steam games" Tag="Steam"/>
-                    <ComboBoxItem Content="PlayStation games" Tag="PlayStation"/>
-                    <ComboBoxItem Content="Xbox games" Tag="Xbox"/>
-                </ComboBox>
+
+                <!-- Multi-select filter checkboxes (All, Executable, Xbox, Steam, PlayStation, 100%) -->
+                <ItemsControl x:Name="FilterCheckBoxesList"
+                              VerticalAlignment="Center">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <StackPanel Orientation="Horizontal"/>
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <CheckBox Style="{StaticResource Win11HeaderFilterCheckBox}"
+                                      IsChecked="{Binding IsSelected, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                      ToolTip="{Binding Tooltip}"
+                                      Click="FilterCheckBox_Click">
+                                <Grid Width="20" Height="20">
+                                    <!-- Fallback icon displayed if the PNG image file is missing -->
+                                    <Border HorizontalAlignment="Center" VerticalAlignment="Center">
+                                        <Border.Style>
+                                            <Style TargetType="Border">
+                                                <Setter Property="Visibility" Value="Collapsed"/>
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding IconImage}" Value="{x:Null}">
+                                                        <Setter Property="Visibility" Value="Visible"/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Border.Style>
+                                        <ui:SymbolIcon Symbol="{Binding FallbackSymbol}" FontSize="17"/>
+                                    </Border>
+
+                                    <!-- Custom PNG icon loaded from assets/icons/filters/ -->
+                                    <Image Source="{Binding IconImage}"
+                                           Stretch="Uniform"
+                                           RenderOptions.BitmapScalingMode="HighQuality"/>
+                                </Grid>
+                            </CheckBox>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+
+                <!-- Subtle vertical separator between filter icons and sort control -->
+                <Border Width="1"
+                        Height="20"
+                        Background="#22FFFFFF"
+                        VerticalAlignment="Center"
+                        Margin="10,0,12,0"/>
 
                 <TextBlock Text="Order by:"
                            Foreground="#AAFFFFFF"
                            FontSize="12"
                            VerticalAlignment="Center"
-                           Margin="0,0,6,0"/>
+                           Margin="0,0,8,0"/>
                 <ComboBox x:Name="CmbOrderBy"
                           Width="165">
                     <ComboBoxItem Content="Default" Tag="Default"/>
