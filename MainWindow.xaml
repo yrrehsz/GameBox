@@ -1,7 +1,6 @@
-﻿<Window x:Class="GameStartMenu.MainWindow"
+<Window x:Class="GameStartMenu.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
         xmlns:views="clr-namespace:GameStartMenu.Views"
         Title="GameStartMenu"
         Width="970"
@@ -13,15 +12,12 @@
         ResizeMode="NoResize"
         Topmost="True"
         ShowInTaskbar="False"
-        Loaded="Window_Loaded"
         Icon="pack://application:,,,/assets/app/app_icon.ico"
+        Loaded="Window_Loaded"
         Deactivated="Window_Deactivated">
 
-    <Border CornerRadius="12"
-            Background="#01FFFFFF"
-            BorderBrush="#33FFFFFF"
-            BorderThickness="0">
-
+    <!-- Nearly transparent background (#01FFFFFF) is required for WPF hit-testing over acrylic blur -->
+    <Border CornerRadius="12" Background="#01FFFFFF">
         <Grid x:Name="MainContentGrid" Background="Transparent">
             <Grid.RenderTransform>
                 <TranslateTransform x:Name="SlideTransform" Y="40"/>
@@ -33,13 +29,13 @@
                 <RowDefinition Height="Auto"/>
             </Grid.RowDefinitions>
 
-            <!-- 1. HEADER -->
+            <!-- Header -->
             <views:HeaderView Grid.Row="0" x:Name="HeaderView"/>
 
-            <!-- 2. GRIGLIA LIBRERIA -->
+            <!-- Game Library Grid -->
             <views:LibraryGridView Grid.Row="1" x:Name="LibraryView"/>
 
-            <!-- 3. FOOTER -->
+            <!-- Footer -->
             <views:FooterView Grid.Row="2" x:Name="FooterView"/>
         </Grid>
     </Border>

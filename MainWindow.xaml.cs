@@ -1,451 +1,329 @@
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
-using System.IO;
-using System.Runtime.InteropServices;
-using System.Threading;
-using System.Threading.Tasks;
 using System.Windows;
-using System.Windows.Interop;
+using System.Windows.Controls;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
-using Wpf.Ui.Controls;
+using System.Windows.Threading;
 using GameStartMenu.Library;
-using System.Collections.Generic;
+using GameStartMenu.Services;
 
 namespace GameStartMenu
 {
-    // 1. Cambiato da FluentWindow a Window così WPF-UI non inietta lo sfondo grigio/blu opaco!
+    /// <summary>
+    /// Popup shell window hosting the header, game library grid, and controller/settings footer.
+    /// Uses a plain WPF <see cref="Window"/> rather than FluentWindow so DWM acrylic blur stays crisp.
+    /// </summary>
     public partial class MainWindow : Window
     {
-        private bool _isMenuOpen = false;
-        private bool _ignoreDeactivate = false;
+        #region Constants & State
+
+        private const double MenuSlideOffset = 35;
+        private const int OpenSlideDurationMs = 200;
+        private const int OpenFadeDurationMs = 140;
+        private const int CloseSlideDurationMs = 140;
+        private const int CloseFadeDurationMs = 120;
+        private const int IpcToggleDebounceMs = 350;
+        private const int OutsideClickPollIntervalMs = 50;
+        private const int SyncSpinDurationMs = 850;
+
+        private readonly GameLibraryService _libraryService = new();
+        private readonly ControllerDetector _controllerDetector;
+        private readonly IpcSignalListener _ipcListener;
+
+        private DispatcherTimer? _outsideClickTimer;
+        private SettingsWindow? _settingsWindow;
+        private bool _isMenuOpen;
+        private bool _isInitializing = true;
         private DateTime _lastDeactivatedTime = DateTime.MinValue;
         private double _anchorX = -1;
-        private bool _isInitializing = true;
 
+        #endregion
 
-        private readonly GameLibraryService _libraryService = new GameLibraryService();
-        private readonly ControllerDetector _controllerDetector;
-
-        private SettingsWindow? _settingsWindow;
-
-        [DllImport("user32.dll")]
-        private static extern IntPtr GetForegroundWindow();
-
-        [DllImport("user32.dll")]
-        private static extern uint GetWindowThreadProcessId(IntPtr hWnd, IntPtr ProcessId);
-
-        [DllImport("kernel32.dll")]
-        private static extern uint GetCurrentThreadId();
-
-        [DllImport("user32.dll")]
-        private static extern bool AttachThreadInput(uint idAttach, uint idAttachTo, bool fAttach);
-
-        [DllImport("user32.dll")]
-        private static extern bool SetForegroundWindow(IntPtr hWnd);
-
-        [DllImport("user32.dll")]
-        private static extern bool BringWindowToTop(IntPtr hWnd);
-
-        [DllImport("user32.dll")]
-        private static extern bool GetCursorPos(out POINT lpPoint);
-
-        [StructLayout(LayoutKind.Sequential)]
-        public struct POINT { public int X; public int Y; }
-
-        [DllImport("user32.dll")]
-        internal static extern int SetWindowCompositionAttribute(IntPtr hwnd, ref WindowCompositionAttributeData data);
-
-        [DllImport("dwmapi.dll")]
-        private static extern int DwmSetWindowAttribute(IntPtr hwnd, int attr, ref int attrValue, int attrSize);
-
-        [StructLayout(LayoutKind.Sequential)]
-        internal struct WindowCompositionAttributeData
-        {
-            public int Attribute;
-            public IntPtr Data;
-            public int SizeOfData;
-        }
-
-        [DllImport("user32.dll")]
-        private static extern void keybd_event(byte bVk, byte bScan, uint dwFlags, UIntPtr dwExtraInfo);
-
-        [DllImport("user32.dll")]
-        private static extern short GetAsyncKeyState(int vKey);
-
-        private const byte VK_MENU = 0x12; // Tasto ALT virtuale
-        private const uint KEYEVENTF_EXTENDEDKEY = 0x0001;
-        private const uint KEYEVENTF_KEYUP = 0x0002;
-        private const int VK_LBUTTON = 0x01; // Clic sinistro mouse
-        private const int VK_RBUTTON = 0x02; // Clic destro mouse
-
-        private System.Windows.Threading.DispatcherTimer? _outsideClickTimer;
-
-        [StructLayout(LayoutKind.Sequential)]
-        internal struct AccentPolicy
-        {
-            public int AccentState;
-            public int AccentFlags;
-            public uint GradientColor;
-            public int AnimationId;
-        }
+        #region Constructor & Initialization
 
         public MainWindow()
         {
             InitializeComponent();
+
             _controllerDetector = new ControllerDetector(_libraryService.Config.ControllerIcons);
-            AvviaAscoltoSegnali();
+            _ipcListener = new IpcSignalListener(
+                onToggleRequested: () => Application.Current?.Dispatcher.Invoke(HandleIpcToggle),
+                onQuitRequested: () => Environment.Exit(0));
 
-            _controllerDetector.OnControllersChanged += AggiornaUIController;
-            _controllerDetector.Start();
+            _ipcListener.Start();
 
-            _controllerDetector.OnToggleMenuShortcutPressed += () =>
-            {
-                Application.Current?.Dispatcher.Invoke(() =>
-                {
-                    if (_isMenuOpen)
-                    {
-                        ChiudiMenu();
-                    }
-                    else
-                    {
-                        ApriMenu();
-                    }
-                });
-            };
-
-            _libraryService.OnLibraryUpdated += AggiornaGrigliaGiochi;
-            _libraryService.LoadCacheAndLocalGames();
-
-            _libraryService.Config.ControllerIcons["TEST_XBOX_ID"] = "pack://application:,,,/assets/controllers/xbox/special/fh5.png";
-            _libraryService.Config.Save();
-
-            // Header events
-            HeaderView.SetActiveFilters(_libraryService.Config.ShowFilter);
-            SelezionaComboPerTag(HeaderView.CmbOrderBy, _libraryService.Config.OrderBy);
-            HeaderView.SearchBox.TextChanged += SearchBox_TextChanged;
-            HeaderView.FilterChanged += _ => ApplyViewSettings();
-            HeaderView.CmbOrderBy.SelectionChanged += FilterOrSort_SelectionChanged;
-
-            // Library events
-            LibraryView.OnPlayGameRequested += AvviaGioco;
-            LibraryView.OnPlayModdedRequested += AvviaGiocoModdato;
-
-
-
-            // Footer events
-            FooterView.BtnSync.Click += BtnSync_Click;
-            FooterView.BtnPinTaskbar.Click += BtnPinInfo_Click;
-            FooterView.BtnSettings.Click += BtnSettings_Click;
-            FooterView.BtnClose.Click += BtnEsci_Click;
-
-            // Controller events
-            FooterView.OnIdentifyRequested += async (ctrl) => await _controllerDetector.IdentifyControllerAsync(ctrl);
-            FooterView.OnTurnOffRequested += (ctrl) => _controllerDetector.TurnOffController(ctrl);
+            InitializeControllerDetection();
+            InitializeLibraryState();
+            BindChildViewEvents();
 
             _isInitializing = false;
 
             _ = _libraryService.SyncCloudIfNeededAsync(force: false, isStartup: true);
         }
 
+        private void InitializeControllerDetection()
+        {
+            _controllerDetector.OnControllersChanged += UpdateControllersUi;
+            _controllerDetector.OnToggleMenuShortcutPressed += () =>
+            {
+                Application.Current?.Dispatcher.BeginInvoke(() => ToggleMenu(fromController: true));
+            };
+            _controllerDetector.OnButtonPressed += button =>
+            {
+                Application.Current?.Dispatcher.BeginInvoke(() => HandleControllerButton(button));
+            };
+            _controllerDetector.Start();
+        }
+
+        private void InitializeLibraryState()
+        {
+            _libraryService.OnLibraryUpdated += UpdateGamesGrid;
+            _libraryService.LoadCacheAndLocalGames();
+
+            _libraryService.Config.ControllerIcons["TEST_XBOX_ID"] = "pack://application:,,,/assets/controllers/xbox/special/fh5.png";
+            _libraryService.Config.Save();
+        }
+
+        private void BindChildViewEvents()
+        {
+            // Header
+            HeaderView.SetActiveFilters(_libraryService.Config.ShowFilter);
+            SelectComboBoxItemByTag(HeaderView.CmbOrderBy, _libraryService.Config.OrderBy);
+            HeaderView.SearchBox.TextChanged += SearchBox_TextChanged;
+            HeaderView.FilterChanged += _ => ApplyViewSettings();
+            HeaderView.CmbOrderBy.SelectionChanged += SortOrder_SelectionChanged;
+
+            // Library
+            LibraryView.OnPlayGameRequested += game => LaunchGameCommand(game.LaunchCommand, $"Unable to launch {game.DisplayTitle}");
+            LibraryView.OnPlayModdedRequested += game => LaunchGameCommand(game.ModLaunchCommand, $"Unable to launch the modded version of {game.DisplayTitle}");
+            LibraryView.OnGameInfoRequested += HandleGameInfoRequested;
+
+            // Footer
+            FooterView.BtnSync.Click += BtnSync_Click;
+            FooterView.BtnPinTaskbar.Click += BtnPinTaskbar_Click;
+            FooterView.BtnSettings.Click += BtnSettings_Click;
+            FooterView.BtnClose.Click += BtnClose_Click;
+            FooterView.OnIdentifyRequested += async ctrl => await _controllerDetector.IdentifyControllerAsync(ctrl);
+            FooterView.OnTurnOffRequested += ctrl => _controllerDetector.TurnOffController(ctrl);
+        }
+
+        #endregion
+
+        #region Window Lifecycle & Acrylic Blur
+
         protected override void OnSourceInitialized(EventArgs e)
         {
             base.OnSourceInitialized(e);
-            AttivaVetroSfocatoPuro();
+            Win32WindowHelper.EnableAcrylicBlur(this);
         }
 
-        private void AttivaVetroSfocatoPuro()
+        protected override void OnClosed(EventArgs e)
         {
-            IntPtr handle = new WindowInteropHelper(this).Handle;
-
-            // Arrotonda il riquadro del Blur a livello hardware su Windows 11 (2 = DWMWCP_ROUND)
-            int cornerPreference = 2;
-            DwmSetWindowAttribute(handle, 33, ref cornerPreference, sizeof(int));
-
-            // Attiva il Blur trasparente:
-            // ATTENZIONE: non mettere MAI "00" come primi due numeri altrimenti Windows 11 mostra grigio solido!
-            // Usa "01" (99% trasparente) oppure "66" (60% trasparente)
-            var accent = new AccentPolicy
-            {
-                AccentState = 4, // 3 = Blur Behind puro (zero grigio di fallback!), 4 = Acrylic Blur
-                AccentFlags = 2,
-                GradientColor = 0x22181818
-            };
-
-            int size = Marshal.SizeOf(accent);
-            IntPtr ptr = Marshal.AllocHGlobal(size);
-            Marshal.StructureToPtr(accent, ptr, false);
-
-            var data = new WindowCompositionAttributeData
-            {
-                Attribute = 19,
-                SizeOfData = size,
-                Data = ptr
-            };
-
-            SetWindowCompositionAttribute(handle, ref data);
-            Marshal.FreeHGlobal(ptr);
+            _outsideClickTimer?.Stop();
+            _ipcListener.Dispose();
+            base.OnClosed(e);
         }
 
         private void Window_Loaded(object sender, RoutedEventArgs e)
         {
-            ApriMenu();
+            OpenMenu();
         }
 
         private void Window_Deactivated(object sender, EventArgs e)
         {
-            if (_isMenuOpen && !_ignoreDeactivate)
-            {
-                _lastDeactivatedTime = DateTime.Now;
-                ChiudiMenu();
-            }
+            if (!_isMenuOpen) return;
+
+            _lastDeactivatedTime = DateTime.Now;
+            CloseMenu();
         }
 
-        private void BtnEsci_Click(object sender, RoutedEventArgs e)
-        {
-            Environment.Exit(0);
-        }
+        #endregion
 
-        private void BtnPinInfo_Click(object sender, RoutedEventArgs e)
-        {
-            string docsDir = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
-            string launcherPath = Path.Combine(docsDir, "LauncherGiochi.exe");
-            string cscPath = @"C:\Windows\Microsoft.NET\Framework64\v4.0.30319\csc.exe";
+        #region Menu Open / Close & Outside-Click Handling
 
-            string tempCs = Path.Combine(Path.GetTempPath(), "LauncherGiochi.cs");
-            string currentExe = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "GameStartMenu.exe");
-            string iconPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "assets/app", "app_icon.ico");
-
-            string code = $@"
-using System.Threading;
-using System.Diagnostics;
-class Program {{
-    static void Main() {{
-        EventWaitHandle s;
-        if (EventWaitHandle.TryOpenExisting(""GameStartMenu_ToggleSignal"", out s)) {{
-            s.Set();
-        }} else {{
-            Process.Start(new ProcessStartInfo {{ FileName = @""{currentExe}"", UseShellExecute = true }});
-        }}
-    }}
-}}";
-            File.WriteAllText(tempCs, code);
-
-            // Se esiste assets\app_icon.ico, la incorpora direttamente dentro LauncherGiochi.exe!
-            string iconArg = File.Exists(iconPath) ? $"/win32icon:\"{iconPath}\" " : "";
-
-            Process.Start(new ProcessStartInfo
-            {
-                FileName = cscPath,
-                Arguments = $"/target:winexe {iconArg}/out:\"{launcherPath}\" \"{tempCs}\"",
-                CreateNoWindow = true,
-                UseShellExecute = false
-            })?.WaitForExit();
-
-            Process.Start("explorer.exe", $"/select,\"{launcherPath}\"");
-        }
-
-        public void ApriMenu()
+        /// <summary>
+        /// Shows the menu popup anchored above the taskbar icon and steals foreground focus cleanly.
+        /// </summary>
+        public void OpenMenu(bool selectFirstCard = false)
         {
             _isMenuOpen = true;
-            this.Show();
-            this.WindowState = WindowState.Normal;
-            PosizionaSopraIcona();
+            Show();
+            WindowState = WindowState.Normal;
 
-            ForzaFocusReale();
-            AvviaControlloClickEsterno();
+            Win32WindowHelper.PositionNearTaskbar(this, ref _anchorX);
+            Win32WindowHelper.ForceForegroundFocus(this);
+            EnsureOutsideClickMonitorRunning();
 
-            DoubleAnimation slideUp = new DoubleAnimation
+            if (selectFirstCard)
             {
-                From = 35,
-                To = 0,
-                Duration = TimeSpan.FromMilliseconds(200),
-                EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut }
-            };
+                LibraryView.SelectFirstItem();
+            }
 
-            DoubleAnimation fadeIn = new DoubleAnimation
-            {
-                From = 0,
-                To = 1,
-                Duration = TimeSpan.FromMilliseconds(140)
-            };
-
-            SlideTransform.BeginAnimation(TranslateTransform.YProperty, slideUp);
-            MainContentGrid.BeginAnimation(UIElement.OpacityProperty, fadeIn);
+            AnimateMenuTransition(isOpening: true);
         }
 
-        public void ChiudiMenu()
+        /// <summary>
+        /// Slides out and hides the menu popup if it is currently open.
+        /// </summary>
+        public void CloseMenu()
         {
             if (!_isMenuOpen) return;
+
             _isMenuOpen = false;
             _outsideClickTimer?.Stop();
+            LibraryView.ClearSelection();
 
-            DoubleAnimation slideDown = new DoubleAnimation
-            {
-                From = 0,
-                To = 35,
-                Duration = TimeSpan.FromMilliseconds(140),
-                EasingFunction = new CubicEase { EasingMode = EasingMode.EaseIn }
-            };
-
-            DoubleAnimation fadeOut = new DoubleAnimation
-            {
-                From = 1,
-                To = 0,
-                Duration = TimeSpan.FromMilliseconds(120)
-            };
-
-            fadeOut.Completed += (s, a) =>
+            AnimateMenuTransition(isOpening: false, onCompleted: () =>
             {
                 if (!_isMenuOpen)
                 {
-                    this.Hide();
+                    Hide();
                 }
+            });
+        }
+
+        private void ToggleMenu(bool fromController = false)
+        {
+            if (_isMenuOpen)
+            {
+                CloseMenu();
+            }
+            else
+            {
+                OpenMenu(selectFirstCard: fromController);
+            }
+        }
+
+        private void HandleControllerButton(ControllerButton button)
+        {
+            if (!_isMenuOpen || !IsVisible) return;
+
+            switch (button)
+            {
+                case ControllerButton.DPadUp:
+                case ControllerButton.DPadDown:
+                case ControllerButton.DPadLeft:
+                case ControllerButton.DPadRight:
+                    LibraryView.Navigate(button);
+                    break;
+
+                case ControllerButton.A:
+                case ControllerButton.X:
+                case ControllerButton.Y:
+                    LibraryView.ExecuteAction(button);
+                    break;
+
+                case ControllerButton.B:
+                    CloseMenu();
+                    break;
+            }
+        }
+
+        private void HandleIpcToggle()
+        {
+            if (_isMenuOpen)
+            {
+                CloseMenu();
+            }
+            else if ((DateTime.Now - _lastDeactivatedTime).TotalMilliseconds > IpcToggleDebounceMs)
+            {
+                OpenMenu();
+            }
+        }
+
+        private void AnimateMenuTransition(bool isOpening, Action? onCompleted = null)
+        {
+            var slideAnimation = new DoubleAnimation
+            {
+                From = isOpening ? MenuSlideOffset : 0,
+                To = isOpening ? 0 : MenuSlideOffset,
+                Duration = TimeSpan.FromMilliseconds(isOpening ? OpenSlideDurationMs : CloseSlideDurationMs),
+                EasingFunction = new CubicEase { EasingMode = isOpening ? EasingMode.EaseOut : EasingMode.EaseIn }
             };
 
-            SlideTransform.BeginAnimation(TranslateTransform.YProperty, slideDown);
-            MainContentGrid.BeginAnimation(UIElement.OpacityProperty, fadeOut);
-        }
-
-        
-
-        private void PosizionaSopraIcona()
-        {
-            Rect workArea = SystemParameters.WorkArea;
-
-            if (GetCursorPos(out POINT mousePos))
+            var fadeAnimation = new DoubleAnimation
             {
-                var source = PresentationSource.FromVisual(this);
-                double dpiX = source?.CompositionTarget?.TransformFromDevice.M11 ?? 1.0;
-                double dpiY = source?.CompositionTarget?.TransformFromDevice.M22 ?? 1.0;
+                From = isOpening ? 0 : 1,
+                To = isOpening ? 1 : 0,
+                Duration = TimeSpan.FromMilliseconds(isOpening ? OpenFadeDurationMs : CloseFadeDurationMs)
+            };
 
-                double mouseX = mousePos.X * dpiX;
-                double mouseY = mousePos.Y * dpiY;
-
-                if (mouseY >= workArea.Bottom - 40)
-                {
-                    _anchorX = mouseX - (this.Width / 2);
-                }
-                else if (_anchorX < 0)
-                {
-                    _anchorX = workArea.Left + 12;
-                }
+            if (onCompleted != null)
+            {
+                fadeAnimation.Completed += (_, _) => onCompleted();
             }
 
-            this.Left = Math.Max(workArea.Left + 12, Math.Min(_anchorX, workArea.Right - this.Width - 12));
-            this.Top = workArea.Bottom - this.Height - 12;
+            SlideTransform.BeginAnimation(TranslateTransform.YProperty, slideAnimation);
+            MainContentGrid.BeginAnimation(OpacityProperty, fadeAnimation);
         }
 
-        private void AvviaAscoltoSegnali()
+        private void EnsureOutsideClickMonitorRunning()
         {
-            // 1. Ascolta il clic sull'icona della Taskbar (Toggle)
-            Task.Run(() =>
+            if (_outsideClickTimer == null)
             {
-                var signal = new EventWaitHandle(false, EventResetMode.AutoReset, "GameStartMenu_ToggleSignal");
-                while (true)
+                _outsideClickTimer = new DispatcherTimer
                 {
-                    signal.WaitOne();
-                    Application.Current?.Dispatcher.Invoke(() =>
-                    {
-                        if (_isMenuOpen)
-                        {
-                            ChiudiMenu();
-                        }
-                        else if ((DateTime.Now - _lastDeactivatedTime).TotalMilliseconds > 350)
-                        {
-                            ApriMenu();
-                        }
-                    });
-                }
-            });
-
-            // 2. Ascolta il segnale di chiusura automatica quando ricompili
-            Task.Run(() =>
-            {
-                var quitSignal = new EventWaitHandle(false, EventResetMode.AutoReset, "GameStartMenu_QuitSignal");
-                quitSignal.WaitOne();
-                Environment.Exit(0);
-            });
-        }
-
-        private void AggiornaUIController(List<ControllerInfo> controllers)
-        {
-            Dispatcher.Invoke(() =>
-            {
-                if (controllers.Count == 0)
-                {
-                    FooterView.NoControllerBadge.Visibility = Visibility.Visible;
-                    FooterView.ControllersList.Visibility = Visibility.Collapsed;
-                }
-                else
-                {
-                    FooterView.NoControllerBadge.Visibility = Visibility.Collapsed;
-                    FooterView.ControllersList.ItemsSource = controllers;
-                    FooterView.ControllersList.Visibility = Visibility.Visible;
-                }
-            });
-        }
-
-        /*private void BtnSettings_Click(object sender, RoutedEventArgs e)
-        {
-            // Impedisce alla finestra principale di chiudersi mentre il menu a comparsa è aperto
-            _ignoreDeactivate = true;
-
-            if (sender is FrameworkElement btn && btn.ContextMenu != null)
-            {
-                btn.ContextMenu.PlacementTarget = btn;
-                btn.ContextMenu.IsOpen = true;
+                    Interval = TimeSpan.FromMilliseconds(OutsideClickPollIntervalMs)
+                };
+                _outsideClickTimer.Tick += OutsideClickTimer_Tick;
             }
-        }*/
 
-        /*private void SettingsPopupMenu_Closed(object sender, RoutedEventArgs e)
-        {
-            // Riattiva la chiusura automatica quando il menu a comparsa si chiude
-            _ignoreDeactivate = false;
-            this.Activate();
-        }*/
-
-        private void AggiornaGrigliaGiochi(List<UnifiedGame> games)
-        {
-            Dispatcher.Invoke(() =>
-            {
-                LibraryView.GamesGridControl.ItemsSource = null;
-                LibraryView.GamesGridControl.ItemsSource = games;
-            });
+            _outsideClickTimer.Start();
         }
 
-        private void BtnPlayGame_Click(object sender, RoutedEventArgs e)
+        private void OutsideClickTimer_Tick(object? sender, EventArgs e)
         {
-            if (sender is FrameworkElement btn && btn.Tag is UnifiedGame game && !string.IsNullOrEmpty(game.LaunchCommand))
-            {
-                try
-                {
-                    // Avvia il gioco tramite il protocollo (es. steam://rungameid/1245620)
-                    Process.Start(new ProcessStartInfo
-                    {
-                        FileName = game.LaunchCommand,
-                        UseShellExecute = true
-                    });
+            if (!_isMenuOpen || !Win32WindowHelper.IsMouseButtonDown()) return;
 
-                    // Chiude elegantemente il menu Start mentre il gioco si avvia!
-                    ChiudiMenu();
-                }
-                catch (Exception ex)
-                {
-                    System.Windows.MessageBox.Show($"Impossibile avviare {game.DisplayTitle}: {ex.Message}");
-                }
+            if (Win32WindowHelper.IsCursorOutsideWindow(this))
+            {
+                _lastDeactivatedTime = DateTime.Now;
+                CloseMenu();
             }
         }
 
-        /*private async void BtnAddGame_Click(object sender, RoutedEventArgs e)
-        {
-            // Forza un aggiornamento immediato della libreria e delle copertine
-            await _libraryService.SyncCloudIfNeededAsync(force: true);
-        }*/
+        #endregion
 
-        private void SelezionaComboPerTag(System.Windows.Controls.ComboBox combo, string targetTag)
+        #region Library, Filter & Controller Updates
+
+        private void UpdateControllersUi(List<ControllerInfo> controllers)
         {
-            foreach (System.Windows.Controls.ComboBoxItem item in combo.Items)
+            void Apply()
+            {
+                bool hasControllers = controllers.Count > 0;
+                LibraryView.IsControllerConnected = hasControllers;
+                if (!hasControllers)
+                {
+                    LibraryView.ClearSelection();
+                }
+
+                FooterView.NoControllerBadge.Visibility = hasControllers ? Visibility.Collapsed : Visibility.Visible;
+                FooterView.ControllersList.ItemsSource = hasControllers ? controllers : null;
+                FooterView.ControllersList.Visibility = hasControllers ? Visibility.Visible : Visibility.Collapsed;
+            }
+
+            if (Dispatcher.CheckAccess()) Apply();
+            else if (!Dispatcher.HasShutdownStarted) Dispatcher.BeginInvoke(Apply);
+        }
+
+        private void UpdateGamesGrid(List<UnifiedGame> games)
+        {
+            void Apply() => LibraryView.UpdateGames(games);
+
+            if (Dispatcher.CheckAccess()) Apply();
+            else if (!Dispatcher.HasShutdownStarted) Dispatcher.BeginInvoke(Apply);
+        }
+
+        private void HandleGameInfoRequested(UnifiedGame game)
+        {
+            // Reserved for the future Game Info & Achievements view (currently triggered by Info button or controller Y).
+        }
+
+        private static void SelectComboBoxItemByTag(ComboBox combo, string targetTag)
+        {
+            foreach (ComboBoxItem item in combo.Items)
             {
                 if (item.Tag?.ToString() == targetTag)
                 {
@@ -453,16 +331,20 @@ class Program {{
                     return;
                 }
             }
-            if (combo.Items.Count > 0) combo.SelectedIndex = 0;
+
+            if (combo.Items.Count > 0)
+            {
+                combo.SelectedIndex = 0;
+            }
         }
 
-        private void SearchBox_TextChanged(object sender, System.Windows.Controls.TextChangedEventArgs e)
+        private void SearchBox_TextChanged(object sender, TextChangedEventArgs e)
         {
             if (_isInitializing) return;
             _libraryService.SetSearchQuery(HeaderView.SearchBox.Text);
         }
 
-        private void FilterOrSort_SelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
+        private void SortOrder_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             ApplyViewSettings();
         }
@@ -472,46 +354,31 @@ class Program {{
             if (_isInitializing || HeaderView?.CmbOrderBy == null) return;
 
             string showFilterCsv = HeaderView.GetActiveFilterCsv();
-            string orderTag = (HeaderView.CmbOrderBy.SelectedItem as System.Windows.Controls.ComboBoxItem)?.Tag?.ToString() ?? "Default";
+            string orderTag = (HeaderView.CmbOrderBy.SelectedItem as ComboBoxItem)?.Tag?.ToString() ?? "Default";
 
             _libraryService.UpdateViewSettings(showFilterCsv, orderTag);
         }
 
-        private void AvviaGioco(UnifiedGame game)
+        #endregion
+
+        #region Game Launch & Footer Actions
+
+        private void LaunchGameCommand(string? command, string errorPrefix)
         {
-            if (string.IsNullOrEmpty(game.LaunchCommand)) return;
+            if (string.IsNullOrEmpty(command)) return;
 
             try
             {
                 Process.Start(new ProcessStartInfo
                 {
-                    FileName = game.LaunchCommand,
+                    FileName = command,
                     UseShellExecute = true
                 });
-                ChiudiMenu();
+                CloseMenu();
             }
             catch (Exception ex)
             {
-                System.Windows.MessageBox.Show($"Impossibile avviare {game.DisplayTitle}: {ex.Message}");
-            }
-        }
-
-        private void AvviaGiocoModdato(UnifiedGame game)
-        {
-            if (string.IsNullOrEmpty(game.ModLaunchCommand)) return;
-
-            try
-            {
-                Process.Start(new ProcessStartInfo
-                {
-                    FileName = game.ModLaunchCommand,
-                    UseShellExecute = true
-                });
-                ChiudiMenu();
-            }
-            catch (Exception ex)
-            {
-                System.Windows.MessageBox.Show($"Impossibile avviare la versione moddata di {game.DisplayTitle}: {ex.Message}");
+                MessageBox.Show($"{errorPrefix}: {ex.Message}", "Launch Error", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
@@ -519,40 +386,44 @@ class Program {{
         {
             FooterView.BtnSync.IsEnabled = false;
 
-            // Avvia l'animazione di rotazione continua sull'icona Sync
             var spinAnimation = new DoubleAnimation
             {
                 From = 0,
                 To = 360,
-                Duration = TimeSpan.FromMilliseconds(850),
+                Duration = TimeSpan.FromMilliseconds(SyncSpinDurationMs),
                 RepeatBehavior = RepeatBehavior.Forever
             };
             FooterView.SyncRotateTransform.BeginAnimation(RotateTransform.AngleProperty, spinAnimation);
 
             try
             {
-                // 1. Rilegge eventuali nuovi giochi installati in locale
                 _libraryService.LoadCacheAndLocalGames();
-
-
-                // 2. Forza la sincronizzazione Cloud (Steam, PlayStation, Xbox) e scarica le cover mancanti
                 await _libraryService.SyncCloudIfNeededAsync(force: true);
             }
             finally
             {
-                // Ferma la rotazione e riabilita il pulsante
                 FooterView.SyncRotateTransform.BeginAnimation(RotateTransform.AngleProperty, null);
                 FooterView.SyncRotateTransform.Angle = 0;
                 FooterView.BtnSync.IsEnabled = true;
             }
         }
 
-
+        private void BtnPinTaskbar_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                TaskbarLauncherService.CreateAndRevealLauncher();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error creating taskbar launcher:\n\n{ex.Message}", "GameBox Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
 
         private void BtnSettings_Click(object sender, RoutedEventArgs e)
         {
-            // Close the start menu popup while working in Settings
-            ChiudiMenu();
+            // Close the start menu popup while working in Settings.
+            CloseMenu();
 
             try
             {
@@ -568,67 +439,15 @@ class Program {{
             }
             catch (Exception ex)
             {
-                System.Windows.MessageBox.Show($"Error opening Settings:\n\n{ex.Message}\n\n{ex.StackTrace}", "GameBox Error", System.Windows.MessageBoxButton.OK, MessageBoxImage.Error);
+                MessageBox.Show($"Error opening Settings:\n\n{ex.Message}\n\n{ex.StackTrace}", "GameBox Error", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
-        private void ForzaFocusReale()
+        private void BtnClose_Click(object sender, RoutedEventArgs e)
         {
-            IntPtr hwnd = new WindowInteropHelper(this).Handle;
-
-            // Trucco ufficiale Win32: invia un impulso invisibile del tasto ALT
-            // Questo costringe Windows 11 a sbloccare il Foreground Lock anche se chiamato da XInput!
-            keybd_event(VK_MENU, 0, KEYEVENTF_EXTENDEDKEY, UIntPtr.Zero);
-            keybd_event(VK_MENU, 0, KEYEVENTF_EXTENDEDKEY | KEYEVENTF_KEYUP, UIntPtr.Zero);
-
-            SetForegroundWindow(hwnd);
-            BringWindowToTop(hwnd);
-
-            this.Topmost = true;
-            this.Activate();
-            this.Focus();
+            Environment.Exit(0);
         }
 
-        private void AvviaControlloClickEsterno()
-        {
-            if (_outsideClickTimer == null)
-            {
-                _outsideClickTimer = new System.Windows.Threading.DispatcherTimer
-                {
-                    Interval = TimeSpan.FromMilliseconds(50)
-                };
-
-                _outsideClickTimer.Tick += (s, e) =>
-                {
-                    if (!_isMenuOpen || _ignoreDeactivate) return;
-
-                    bool mouseClicked = (GetAsyncKeyState(VK_LBUTTON) & 0x8000) != 0 ||
-                                        (GetAsyncKeyState(VK_RBUTTON) & 0x8000) != 0;
-
-                    if (mouseClicked && GetCursorPos(out POINT pt))
-                    {
-                        var source = PresentationSource.FromVisual(this);
-                        double dpiX = source?.CompositionTarget?.TransformFromDevice.M11 ?? 1.0;
-                        double dpiY = source?.CompositionTarget?.TransformFromDevice.M22 ?? 1.0;
-
-                        double mouseX = pt.X * dpiX;
-                        double mouseY = pt.Y * dpiY;
-
-                        bool isInsideWindow = mouseX >= this.Left && mouseX <= (this.Left + this.Width) &&
-                                              mouseY >= this.Top && mouseY <= (this.Top + this.Height);
-
-                        if (!isInsideWindow)
-                        {
-                            _lastDeactivatedTime = DateTime.Now;
-                            ChiudiMenu();
-                        }
-                    }
-                };
-            }
-
-            _outsideClickTimer.Start();
-        }
-
-
+        #endregion
     }
 }

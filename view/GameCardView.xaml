@@ -33,11 +33,12 @@
                 BorderThickness="0"
                 ClipToBounds="True"
                 RenderTransformOrigin="0.5,0.5"
+                MouseEnter="CardBorder_MouseEnter"
                 MouseMove="CardBorder_MouseMove"
                 MouseLeave="CardBorder_MouseLeave"
                 Panel.ZIndex="0">
 
-            <!-- Scale + lift transform driven by hover animations -->
+            <!-- Scale + lift transform driven by hover or controller selection animations -->
             <Border.RenderTransform>
                 <TransformGroup>
                     <ScaleTransform x:Name="CardScale" ScaleX="1.0" ScaleY="1.0"/>
@@ -45,7 +46,7 @@
                 </TransformGroup>
             </Border.RenderTransform>
 
-            <!-- Drop shadow that intensifies on hover -->
+            <!-- Drop shadow overlay -->
             <Border.Effect>
                 <DropShadowEffect x:Name="CardShadow"
                                   BlurRadius="10" ShadowDepth="3"
@@ -62,73 +63,6 @@
                     </Style.Triggers>
                 </Style>
             </Border.Style>
-
-            <!-- Consolidated hover / leave animations -->
-            <Border.Triggers>
-                <EventTrigger RoutedEvent="MouseEnter">
-                    <BeginStoryboard>
-                        <Storyboard>
-                            <!-- Scale up: 1.0 → 1.05 -->
-                            <DoubleAnimation Storyboard.TargetName="CardScale"
-                                             Storyboard.TargetProperty="ScaleX"
-                                             To="1.05" Duration="0:0:0.18">
-                                <DoubleAnimation.EasingFunction><CubicEase EasingMode="EaseOut"/></DoubleAnimation.EasingFunction>
-                            </DoubleAnimation>
-                            <DoubleAnimation Storyboard.TargetName="CardScale"
-                                             Storyboard.TargetProperty="ScaleY"
-                                             To="1.05" Duration="0:0:0.18">
-                                <DoubleAnimation.EasingFunction><CubicEase EasingMode="EaseOut"/></DoubleAnimation.EasingFunction>
-                            </DoubleAnimation>
-                            <!-- Lift card upward by 4px -->
-                            <DoubleAnimation Storyboard.TargetName="CardTranslate"
-                                             Storyboard.TargetProperty="Y"
-                                             To="-4" Duration="0:0:0.18">
-                                <DoubleAnimation.EasingFunction><CubicEase EasingMode="EaseOut"/></DoubleAnimation.EasingFunction>
-                            </DoubleAnimation>
-                            <!-- Fade in glossy sheen -->
-                            <DoubleAnimation Storyboard.TargetName="GlossyOverlay"
-                                             Storyboard.TargetProperty="Opacity"
-                                             To="1.0" Duration="0:0:0.15"/>
-                            <!-- Fade in action button bar -->
-                            <DoubleAnimation Storyboard.TargetName="ActionOverlayBar"
-                                             Storyboard.TargetProperty="Opacity"
-                                             To="1.0" Duration="0:0:0.16"/>
-                        </Storyboard>
-                    </BeginStoryboard>
-                </EventTrigger>
-
-                <EventTrigger RoutedEvent="MouseLeave">
-                    <BeginStoryboard>
-                        <Storyboard>
-                            <!-- Scale back to normal -->
-                            <DoubleAnimation Storyboard.TargetName="CardScale"
-                                             Storyboard.TargetProperty="ScaleX"
-                                             To="1.0" Duration="0:0:0.2">
-                                <DoubleAnimation.EasingFunction><CubicEase EasingMode="EaseOut"/></DoubleAnimation.EasingFunction>
-                            </DoubleAnimation>
-                            <DoubleAnimation Storyboard.TargetName="CardScale"
-                                             Storyboard.TargetProperty="ScaleY"
-                                             To="1.0" Duration="0:0:0.2">
-                                <DoubleAnimation.EasingFunction><CubicEase EasingMode="EaseOut"/></DoubleAnimation.EasingFunction>
-                            </DoubleAnimation>
-                            <!-- Drop back to resting position -->
-                            <DoubleAnimation Storyboard.TargetName="CardTranslate"
-                                             Storyboard.TargetProperty="Y"
-                                             To="0" Duration="0:0:0.2">
-                                <DoubleAnimation.EasingFunction><CubicEase EasingMode="EaseOut"/></DoubleAnimation.EasingFunction>
-                            </DoubleAnimation>
-                            <!-- Fade out glossy sheen -->
-                            <DoubleAnimation Storyboard.TargetName="GlossyOverlay"
-                                             Storyboard.TargetProperty="Opacity"
-                                             To="0.0" Duration="0:0:0.25"/>
-                            <!-- Fade out action button bar -->
-                            <DoubleAnimation Storyboard.TargetName="ActionOverlayBar"
-                                             Storyboard.TargetProperty="Opacity"
-                                             To="0.0" Duration="0:0:0.18"/>
-                        </Storyboard>
-                    </BeginStoryboard>
-                </EventTrigger>
-            </Border.Triggers>
 
             <Grid ClipToBounds="True">
                 <!-- Fallback title shown when cover image is missing -->
@@ -170,55 +104,86 @@
                     </Rectangle>
                 </Canvas>
 
-                <!-- Action buttons bar — hidden by default, fades in on hover -->
+                <!-- Action buttons bar — hidden by default, fades in on hover or controller selection -->
                 <Border x:Name="ActionOverlayBar"
-                        Height="45"
-                        Margin="0,0,0,6"
+                        Margin="0,0,0,11"
                         VerticalAlignment="Bottom"
                         HorizontalAlignment="Stretch"
                         Background="Transparent"
+                        IsHitTestVisible="False"
                         Opacity="0">
                     <StackPanel Orientation="Horizontal"
                                 HorizontalAlignment="Center"
-                                VerticalAlignment="Center">
+                                VerticalAlignment="Bottom">
 
-                        <!-- Play button (green hover) -->
-                        <Button Visibility="{Binding PlayButtonVisibility}"
-                                Cursor="Hand"
-                                Width="34" Height="34"
-                                Margin="4,0"
-                                ToolTip="Play Game"
-                                Tag="{Binding}"
-                                Click="BtnPlayGame_Click"
-                                Template="{StaticResource PlayButtonTemplate}">
-                            <ui:SymbolIcon Symbol="Play24" FontSize="17" Foreground="White"/>
-                        </Button>
+                        <!-- Play button + A badge -->
+                        <StackPanel Orientation="Vertical"
+                                    VerticalAlignment="Bottom"
+                                    Margin="4,0"
+                                    Visibility="{Binding PlayButtonVisibility}">
+                            <ContentControl Style="{StaticResource GamepadBadgeStyle}"
+                                            Content="A"
+                                            Foreground="#FF5BE374"
+                                            Margin="0,0,0,4"/>
+                            <Button Cursor="Hand"
+                                    Width="34" Height="34"
+                                    ToolTip="Play Game"
+                                    Tag="{Binding}"
+                                    Click="BtnPlayGame_Click"
+                                    Template="{StaticResource PlayButtonTemplate}">
+                                <ui:SymbolIcon Symbol="Play24" FontSize="17" Foreground="White"/>
+                            </Button>
+                        </StackPanel>
 
-                        <!-- Play Modded / Emulator button (blue hover) -->
-                        <Button Visibility="{Binding ModButtonVisibility}"
-                                Cursor="Hand"
-                                Width="34" Height="34"
-                                Margin="4,0"
-                                ToolTip="{Binding ModDisplayName}"
-                                Tag="{Binding}"
-                                Click="BtnPlayModded_Click"
-                                Template="{StaticResource ModButtonTemplate}">
-                            <ui:SymbolIcon Symbol="Wrench24" FontSize="17" Foreground="White"/>
-                        </Button>
+                        <!-- Play Modded / Emulator button + X badge -->
+                        <StackPanel Orientation="Vertical"
+                                    VerticalAlignment="Bottom"
+                                    Margin="4,0"
+                                    Visibility="{Binding ModButtonVisibility}">
+                            <ContentControl Style="{StaticResource GamepadBadgeStyle}"
+                                            Content="X"
+                                            Foreground="#FF42BEFF"
+                                            Margin="0,0,0,4"/>
+                            <Button Cursor="Hand"
+                                    Width="34" Height="34"
+                                    ToolTip="{Binding ModDisplayName}"
+                                    Tag="{Binding}"
+                                    Click="BtnPlayModded_Click"
+                                    Template="{StaticResource ModButtonTemplate}">
+                                <ui:SymbolIcon Symbol="Wrench24" FontSize="17" Foreground="White"/>
+                            </Button>
+                        </StackPanel>
 
-                        <!-- Info / Achievements button (slate hover) -->
-                        <Button Cursor="Hand"
-                                Width="30" Height="30"
-                                Margin="4,0"
-                                ToolTip="Game Info &amp; Achievements"
-                                Tag="{Binding}"
-                                Click="BtnGameInfo_Click"
-                                Template="{StaticResource InfoButtonTemplate}">
-                            <ui:SymbolIcon Symbol="Info24" FontSize="17" Foreground="White"/>
-                        </Button>
+                        <!-- Info / Achievements button + Y badge -->
+                        <StackPanel Orientation="Vertical"
+                                    VerticalAlignment="Bottom"
+                                    Margin="4,0">
+                            <ContentControl Style="{StaticResource GamepadBadgeStyle}"
+                                            Content="Y"
+                                            Foreground="#FFFFD147"
+                                            Margin="0,0,0,4"/>
+                            <Button Cursor="Hand"
+                                    Width="30" Height="30"
+                                    Margin="0,2"
+                                    ToolTip="Game Info &amp; Achievements"
+                                    Tag="{Binding}"
+                                    Click="BtnGameInfo_Click"
+                                    Template="{StaticResource InfoButtonTemplate}">
+                                <ui:SymbolIcon Symbol="Info24" FontSize="17" Foreground="White"/>
+                            </Button>
+                        </StackPanel>
 
                     </StackPanel>
                 </Border>
+
+                <!-- Luminous selection ring shown when highlighted via controller -->
+                <Border x:Name="ControllerSelectionBorder"
+                        IsHitTestVisible="False"
+                        BorderBrush="#CCA8D8FF"
+                        BorderThickness="2"
+                        Opacity="0"
+                        Panel.ZIndex="4"
+                        SnapsToDevicePixels="True"/>
             </Grid>
         </Border>
 

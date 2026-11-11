@@ -29,6 +29,7 @@
                     <EventSetter Event="views:GameCardView.PlayGame"   Handler="Card_PlayGame"/>
                     <EventSetter Event="views:GameCardView.PlayModded" Handler="Card_PlayModded"/>
                     <EventSetter Event="views:GameCardView.GameInfo"   Handler="Card_GameInfo"/>
+                    <EventSetter Event="MouseMove"                     Handler="Card_MouseMove"/>
                 </Style>
             </ItemsControl.ItemContainerStyle>
         </ItemsControl>

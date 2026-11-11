@@ -17,6 +17,18 @@ namespace GameStartMenu
         Generic
     }
 
+    public enum ControllerButton
+    {
+        DPadUp,
+        DPadDown,
+        DPadLeft,
+        DPadRight,
+        A,
+        B,
+        X,
+        Y
+    }
+
     public class ControllerInfo
     {
         public string UniqueId { get; set; } = "";
@@ -32,18 +44,47 @@ namespace GameStartMenu
 
     public class ControllerDetector
     {
+        private const int DPadInitialRepeatDelayMs = 360;
+        private const int DPadRepeatIntervalMs = 105;
+
+        private const ushort XINPUT_GAMEPAD_DPAD_UP    = 0x0001;
+        private const ushort XINPUT_GAMEPAD_DPAD_DOWN  = 0x0002;
+        private const ushort XINPUT_GAMEPAD_DPAD_LEFT  = 0x0004;
+        private const ushort XINPUT_GAMEPAD_DPAD_RIGHT = 0x0008;
+        private const ushort XINPUT_GAMEPAD_START      = 0x0010;
+        private const ushort XINPUT_GAMEPAD_BACK       = 0x0020;
+        private const ushort XINPUT_GAMEPAD_GUIDE      = 0x0400;
+        private const ushort XINPUT_GAMEPAD_A          = 0x1000;
+        private const ushort XINPUT_GAMEPAD_B          = 0x2000;
+        private const ushort XINPUT_GAMEPAD_X          = 0x4000;
+        private const ushort XINPUT_GAMEPAD_Y          = 0x8000;
+
+        private static readonly (ushort Mask, ControllerButton Button, bool Repeatable)[] MappedButtons =
+        {
+            (XINPUT_GAMEPAD_DPAD_UP,    ControllerButton.DPadUp,    true),
+            (XINPUT_GAMEPAD_DPAD_DOWN,  ControllerButton.DPadDown,  true),
+            (XINPUT_GAMEPAD_DPAD_LEFT,  ControllerButton.DPadLeft,  true),
+            (XINPUT_GAMEPAD_DPAD_RIGHT, ControllerButton.DPadRight, true),
+            (XINPUT_GAMEPAD_A,          ControllerButton.A,         false),
+            (XINPUT_GAMEPAD_B,          ControllerButton.B,         false),
+            (XINPUT_GAMEPAD_X,          ControllerButton.X,         false),
+            (XINPUT_GAMEPAD_Y,          ControllerButton.Y,         false),
+        };
+
         private readonly System.Timers.Timer _pollTimer;
         private readonly System.Timers.Timer _inputTimer;
-        private bool _wasComboPressed = false;
-        private string _lastStateSignature = "INIT";
         private readonly Dictionary<string, string> _customIcons;
+        private readonly Dictionary<ControllerButton, DateTime> _dpadNextRepeatUtc = new();
+        private readonly object _controllersLock = new();
+
+        private bool _wasComboPressed = false;
+        private bool _anyXInputActive = false;
+        private ushort _previousButtons = 0;
+        private int _isPollingInput = 0;
+        private string _lastStateSignature = "INIT";
 
         public event Action? OnToggleMenuShortcutPressed;
-
-        private const ushort XINPUT_GAMEPAD_START = 0x0010;
-        private const ushort XINPUT_GAMEPAD_BACK  = 0x0020;
-        private const ushort XINPUT_GAMEPAD_GUIDE = 0x0400;
-
+        public event Action<ControllerButton>? OnButtonPressed;
         public event Action<List<ControllerInfo>>? OnControllersChanged;
 
         [StructLayout(LayoutKind.Sequential)]
@@ -139,10 +180,19 @@ namespace GameStartMenu
         {
             var controllers = DetectConnectedControllers();
 
-            string signature = string.Join("|", controllers.Select(c => $"{c.UniqueId}:{c.XInputSlot}"));
-            if (signature != _lastStateSignature)
+            bool changed = false;
+            lock (_controllersLock)
             {
-                _lastStateSignature = signature;
+                string signature = string.Join("|", controllers.Select(c => $"{c.UniqueId}:{c.XInputSlot}"));
+                if (signature != _lastStateSignature)
+                {
+                    _lastStateSignature = signature;
+                    changed = true;
+                }
+            }
+
+            if (changed)
+            {
                 OnControllersChanged?.Invoke(controllers);
             }
         }
@@ -352,38 +402,102 @@ namespace GameStartMenu
 
         private void CheckControllerShortcuts()
         {
-            bool isShortcutActiveNow = false;
+            if (Interlocked.Exchange(ref _isPollingInput, 1) == 1) return;
 
-            for (uint slot = 0; slot < 4; slot++)
+            try
             {
-                if (XInputGetStateEx(slot, out XINPUT_STATE state) == 0)
+                bool isShortcutActiveNow = false;
+                bool anySlotConnected = false;
+                ushort combinedButtons = 0;
+
+                for (uint slot = 0; slot < 4; slot++)
                 {
-                    ushort buttons = state.Gamepad.wButtons;
-
-                    // Opzione A: Start + Select premuti contemporaneamente
-                    bool startAndSelect = (buttons & XINPUT_GAMEPAD_START) != 0 &&
-                                          (buttons & XINPUT_GAMEPAD_BACK) != 0;
-
-                    // Opzione B: Tasto centrale Xbox / PlayStation (se vuoi abilitare anche questo, lascia || guideButton)
-                    bool guideButton = (buttons & XINPUT_GAMEPAD_GUIDE) != 0;
-
-                    if (startAndSelect)
+                    if (XInputGetStateEx(slot, out XINPUT_STATE state) == 0)
                     {
-                        isShortcutActiveNow = true;
-                        break;
+                        anySlotConnected = true;
+                        ushort buttons = state.Gamepad.wButtons;
+                        combinedButtons |= buttons;
+
+                        // Option A: Start + Select held simultaneously
+                        bool startAndSelect = (buttons & XINPUT_GAMEPAD_START) != 0 &&
+                                              (buttons & XINPUT_GAMEPAD_BACK) != 0;
+
+                        // Option B: Xbox / PlayStation Guide button (if needed: || guideButton)
+                        bool guideButton = (buttons & XINPUT_GAMEPAD_GUIDE) != 0;
+
+                        if (startAndSelect)
+                        {
+                            isShortcutActiveNow = true;
+                        }
                     }
                 }
-            }
 
-            // Scatta solo una volta sul fronte di salita (quando premi i tasti, evitando ripetizioni se li tieni premuti)
-            if (isShortcutActiveNow && !_wasComboPressed)
-            {
-                _wasComboPressed = true;
-                OnToggleMenuShortcutPressed?.Invoke();
+                if (anySlotConnected != _anyXInputActive)
+                {
+                    _anyXInputActive = anySlotConnected;
+                    _ = Task.Run(CheckControllers);
+                }
+
+                // Trigger menu toggle only once on the rising edge of the shortcut combo.
+                if (isShortcutActiveNow && !_wasComboPressed)
+                {
+                    _wasComboPressed = true;
+                    _previousButtons = combinedButtons;
+                    _dpadNextRepeatUtc.Clear();
+                    OnToggleMenuShortcutPressed?.Invoke();
+                    return;
+                }
+                else if (!isShortcutActiveNow)
+                {
+                    _wasComboPressed = false;
+                }
+
+                if (!isShortcutActiveNow)
+                {
+                    ProcessButtonTransitions(combinedButtons);
+                }
+
+                _previousButtons = combinedButtons;
             }
-            else if (!isShortcutActiveNow)
+            finally
             {
-                _wasComboPressed = false;
+                Interlocked.Exchange(ref _isPollingInput, 0);
+            }
+        }
+
+        private void ProcessButtonTransitions(ushort currentButtons)
+        {
+            DateTime now = DateTime.UtcNow;
+
+            foreach (var (mask, button, repeatable) in MappedButtons)
+            {
+                bool isPressed = (currentButtons & mask) != 0;
+                bool wasPressed = (_previousButtons & mask) != 0;
+
+                if (!isPressed)
+                {
+                    if (repeatable)
+                    {
+                        _dpadNextRepeatUtc.Remove(button);
+                    }
+                    continue;
+                }
+
+                if (!wasPressed)
+                {
+                    if (repeatable)
+                    {
+                        _dpadNextRepeatUtc[button] = now.AddMilliseconds(DPadInitialRepeatDelayMs);
+                    }
+                    OnButtonPressed?.Invoke(button);
+                }
+                else if (repeatable &&
+                         _dpadNextRepeatUtc.TryGetValue(button, out DateTime nextRepeatAt) &&
+                         now >= nextRepeatAt)
+                {
+                    _dpadNextRepeatUtc[button] = now.AddMilliseconds(DPadRepeatIntervalMs);
+                    OnButtonPressed?.Invoke(button);
+                }
             }
         }
 
