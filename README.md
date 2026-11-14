@@ -2,6 +2,8 @@
 
 GameBox is a lightweight, Windows 11-styled start menu launcher designed to unify your PC and console gaming libraries in one clean, gamepad-friendly overlay. It brings together local executables, Steam, PlayStation Network, and Xbox Network titles with achievement badges, cover artwork, and full controller navigation.
 
+![demo](./assets/demo/demo.gif)
+
 ---
 
 ## Features
@@ -81,17 +83,18 @@ User configuration, cloud cache, and companion binaries are stored in:
 ## To-Do
 
 - [ ] Complete the dedicated Game Info and Achievement breakdown detail view triggered by `Y` / Info button.
-- [ ] Expand controller settings tab to support custom controller icon themes, per-device profiles, and custom button bindings.
+- [ ] Expand controller settings tab to support custom controller icon themes (if I manage to get an unique ID for any controller)
+- [ ] Add ability to turn off any connected controller. 
 - [ ] Add integration for additional digital storefronts (Epic Games Store, GOG Galaxy, EA App, Ubisoft Connect).
 - [ ] Implement playtime tracking and recently played session history for non-store executables.
 - [ ] Add localization support (multi-language UI selection).
-- [ ] Provide customizable grid sizing (cover card scale and column density options).
+- [ ] 
 
 ---
 
 ## Known Issues
 
-- **Windows 11 Taskbar Auto-Pin Limitation**: Due to security policies introduced in recent Windows 11 updates (23H2/24H2), third-party unpackaged desktop applications cannot programmatically pin shortcuts to the taskbar without user interaction. To pin the launcher, use the "Show in Explorer" option in Settings or Footer, right-click `LauncherGiochi.exe`, and select *Pin to taskbar*.
+- **Windows 11 Taskbar Auto-Pin Limitation**: Due to security policies introduced in recent Windows 11 updates, third-party unpackaged desktop applications cannot programmatically pin shortcuts to the taskbar without user interaction. To pin the launcher, use the "Show in Explorer" option in Settings or Footer, right-click `GameBox.exe`, and select *Pin to taskbar*.
 - **PSN NPSSO Token Expiration**: PlayStation Network NPSSO tokens expire periodically on Sony's authentication servers and must be refreshed manually in Settings > Sync if trophy synchronization stops updating.
 - **DirectInput / Non-XInput Controllers**: Gamepad shortcuts and navigation rely on the XInput API. Generic DirectInput controllers require an XInput wrapper or emulator (such as DS4Windows or Steam Input) to be detected.
-- **Transparency Fallback**: If Windows Transparency Effects are disabled in Windows Settings (`Accessibility > Visual effects`), the acrylic background will render as a solid dark backdrop.
+- I'm sure there are a lot of bugs, but I haven't found them yet.
