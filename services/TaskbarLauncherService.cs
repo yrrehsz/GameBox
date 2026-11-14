@@ -1,34 +1,70 @@
 using System;
 using System.Diagnostics;
 using System.IO;
+using GameStartMenu.Library;
 
 namespace GameStartMenu.Services
 {
     /// <summary>
-    /// Generates and compiles a lightweight Windows executable in the user's Documents folder
+    /// Generates and compiles the lightweight taskbar launcher executable inside
+    /// <see cref="AppConfig.AppDataFolder"/> (alongside the JSON configuration files)
     /// so it can be pinned to the Windows Taskbar to toggle or launch GameStartMenu.
     /// </summary>
     internal static class TaskbarLauncherService
     {
         private const string CompilerPath = @"C:\Windows\Microsoft.NET\Framework64\v4.0.30319\csc.exe";
-        private const string OutputExeName = "LauncherGiochi.exe";
-        private const string TempSourceName = "LauncherGiochi.cs";
-        private const string MainExeName = "GameStartMenu.exe";
+        private const string OutputExeName = "GameBox.exe";
+        private const string TempSourceName = "GameBox.cs";
+
+        public static string LauncherExePath => Path.Combine(AppConfig.AppDataFolder, OutputExeName);
 
         /// <summary>
-        /// Compiles the taskbar shim executable into My Documents and selects it in Windows Explorer.
+        /// Ensures the taskbar shim executable exists and is newer than the main executable,
+        /// silently recompiling it if needed without opening Windows Explorer.
+        /// </summary>
+        public static void TryEnsureLauncherBuilt()
+        {
+            try
+            {
+                if (!File.Exists(CompilerPath)) return;
+
+                string mainExePath = WindowsStartupService.GetExecutablePath();
+                bool needsBuild = !File.Exists(LauncherExePath) ||
+                                  (File.Exists(mainExePath) &&
+                                   File.GetLastWriteTimeUtc(LauncherExePath) < File.GetLastWriteTimeUtc(mainExePath));
+
+                if (needsBuild)
+                {
+                    BuildLauncher();
+                }
+            }
+            catch
+            {
+                // Non-fatal at startup; explicit pin action surfaces any compiler errors.
+            }
+        }
+
+        /// <summary>
+        /// Compiles the taskbar shim executable into <see cref="AppConfig.AppDataFolder"/>
+        /// and selects it in Windows Explorer for pinning.
         /// </summary>
         public static void CreateAndRevealLauncher()
+        {
+            BuildLauncher();
+            Process.Start("explorer.exe", $"/select,\"{LauncherExePath}\"");
+        }
+
+        private static void BuildLauncher()
         {
             if (!File.Exists(CompilerPath))
             {
                 throw new FileNotFoundException($"C# compiler not found at '{CompilerPath}'.", CompilerPath);
             }
 
-            string docsDir = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
-            string launcherPath = Path.Combine(docsDir, OutputExeName);
+            Directory.CreateDirectory(AppConfig.AppDataFolder);
+
             string tempCsPath = Path.Combine(Path.GetTempPath(), TempSourceName);
-            string currentExePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, MainExeName);
+            string currentExePath = WindowsStartupService.GetExecutablePath();
             string iconPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "assets", "app", "app_icon.ico");
 
             string sourceCode = BuildLauncherSource(currentExePath, IpcSignalListener.ToggleSignalName);
@@ -43,7 +79,7 @@ namespace GameStartMenu.Services
                 using Process? compiler = Process.Start(new ProcessStartInfo
                 {
                     FileName = CompilerPath,
-                    Arguments = $"/target:winexe {iconArg}/out:\"{launcherPath}\" \"{tempCsPath}\"",
+                    Arguments = $"/target:winexe {iconArg}/out:\"{LauncherExePath}\" \"{tempCsPath}\"",
                     CreateNoWindow = true,
                     UseShellExecute = false
                 });
@@ -65,8 +101,6 @@ namespace GameStartMenu.Services
                     // Ignore cleanup failures for temporary build source files.
                 }
             }
-
-            Process.Start("explorer.exe", $"/select,\"{launcherPath}\"");
         }
 
         private static string BuildLauncherSource(string mainExePath, string toggleSignalName)

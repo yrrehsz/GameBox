@@ -42,6 +42,7 @@ namespace GameStartMenu
             PageAddGame.Initialize(_libraryService);
             PageAppearance.Initialize(_libraryService);
             PageSync.Initialize(_libraryService);
+            PageGeneral.Initialize(_libraryService);
             // PageController has no service dependency yet
         }
 
@@ -51,7 +52,7 @@ namespace GameStartMenu
 
         private void NavTab_Checked(object sender, RoutedEventArgs e)
         {
-            if (PageLibrary is null || PageAddGame is null || PageController is null || PageSync is null || PageAppearance is null)
+            if (PageLibrary is null || PageAddGame is null || PageController is null || PageSync is null || PageAppearance is null || PageGeneral is null)
                 return;
 
             PageLibrary.Visibility    = NavLibrary.IsChecked    == true ? Visibility.Visible : Visibility.Collapsed;
@@ -59,6 +60,7 @@ namespace GameStartMenu
             PageController.Visibility = NavController.IsChecked == true ? Visibility.Visible : Visibility.Collapsed;
             PageSync.Visibility       = NavSync.IsChecked       == true ? Visibility.Visible : Visibility.Collapsed;
             PageAppearance.Visibility = NavAppearance.IsChecked == true ? Visibility.Visible : Visibility.Collapsed;
+            PageGeneral.Visibility    = NavGeneral.IsChecked    == true ? Visibility.Visible : Visibility.Collapsed;
         }
     }
 }

@@ -463,5 +463,12 @@ namespace GameStartMenu.Library
             Config.Save();
             OnLibraryUpdated?.Invoke(GetSortedGames());
         }
+
+        /// <summary>Persists whether GameStartMenu should launch automatically at Windows sign-in.</summary>
+        public void UpdateLaunchAtStartupSetting(bool enabled)
+        {
+            Config.LaunchAtStartup = enabled;
+            Config.Save();
+        }
     }
 }

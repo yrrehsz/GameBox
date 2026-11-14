@@ -56,11 +56,26 @@ namespace GameStartMenu
 
             InitializeControllerDetection();
             InitializeLibraryState();
+            InitializeStartupArtifacts();
             BindChildViewEvents();
 
             _isInitializing = false;
 
             _ = _libraryService.SyncCloudIfNeededAsync(force: false, isStartup: true);
+        }
+
+        private void InitializeStartupArtifacts()
+        {
+            try
+            {
+                WindowsStartupService.SetStartupEnabled(_libraryService.Config.LaunchAtStartup);
+            }
+            catch
+            {
+                // Non-fatal if registry access is restricted on the host policy.
+            }
+
+            _ = Task.Run(TaskbarLauncherService.TryEnsureLauncherBuilt);
         }
 
         private void InitializeControllerDetection()
@@ -128,7 +143,10 @@ namespace GameStartMenu
 
         private void Window_Loaded(object sender, RoutedEventArgs e)
         {
-            OpenMenu();
+            if (!_isMenuOpen)
+            {
+                OpenMenu();
+            }
         }
 
         private void Window_Deactivated(object sender, EventArgs e)

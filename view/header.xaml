@@ -18,7 +18,7 @@
                         <Border x:Name="BtnBox"
                                 Background="{TemplateBinding Background}"
                                 CornerRadius="6"
-                                BorderThickness="1"
+                                BorderThickness="0"
                                 BorderBrush="Transparent">
                             <Grid>
                                 <ContentPresenter x:Name="IconHost"
@@ -50,8 +50,8 @@
                             </Trigger>
                             <Trigger Property="IsChecked" Value="True">
                                 <Setter TargetName="BtnBox" Property="Background" Value="#2260CDFF"/>
-                                <Setter TargetName="BtnBox" Property="BorderBrush" Value="#60CDFF"/>
-                                <Setter TargetName="ActiveIndicator" Property="Visibility" Value="Visible"/>
+                                <Setter TargetName="BtnBox" Property="BorderBrush" Value="#000000"/>
+                                <Setter TargetName="ActiveIndicator" Property="Visibility" Value="Collapsed"/>
                                 <Setter TargetName="IconHost" Property="Opacity" Value="1.0"/>
                                 <Setter Property="Foreground" Value="White"/>
                             </Trigger>
@@ -61,7 +61,7 @@
                                     <Condition Property="IsMouseOver" Value="True"/>
                                 </MultiTrigger.Conditions>
                                 <Setter TargetName="BtnBox" Property="Background" Value="#3060CDFF"/>
-                                <Setter TargetName="BtnBox" Property="BorderBrush" Value="#88DCFF"/>
+                                <Setter TargetName="BtnBox" Property="BorderBrush" Value="#000000"/>
                             </MultiTrigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>

@@ -61,6 +61,15 @@ namespace GameStartMenu.Library
         public Dictionary<string, string> ControllerIcons { get; set; } = new();
 
         // =====================================================================
+        // Startup & System
+        // =====================================================================
+
+        /// <summary>
+        /// Automatically starts GameStartMenu in the background on Windows sign-in.
+        /// </summary>
+        public bool LaunchAtStartup { get; set; } = true;
+
+        // =====================================================================
         // Storage Paths
         // =====================================================================
 
