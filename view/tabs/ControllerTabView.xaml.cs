@@ -1,6 +1,6 @@
 using System.Windows.Controls;
 
-namespace GameStartMenu.Views
+namespace GameBox.Views
 {
     public partial class ControllerTabView : UserControl
     {

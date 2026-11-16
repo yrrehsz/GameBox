@@ -1,14 +1,14 @@
 using System;
 using System.Diagnostics;
 using System.IO;
-using GameStartMenu.Library;
+using GameBox.Library;
 
-namespace GameStartMenu.Services
+namespace GameBox.Services
 {
     /// <summary>
     /// Generates and compiles the lightweight taskbar launcher executable inside
     /// <see cref="AppConfig.AppDataFolder"/> (alongside the JSON configuration files)
-    /// so it can be pinned to the Windows Taskbar to toggle or launch GameStartMenu.
+    /// so it can be pinned to the Windows Taskbar to toggle or launch GameBox.
     /// </summary>
     internal static class TaskbarLauncherService
     {

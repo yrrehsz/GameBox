@@ -5,7 +5,7 @@ using System.Net.Http.Headers;
 using System.Text.Json;
 using System.Threading.Tasks;
 
-namespace GameStartMenu.Library
+namespace GameBox.Library
 {
     /// <summary>
     /// Helper responsible for locating, downloading, and locally caching 600x900 vertical game covers

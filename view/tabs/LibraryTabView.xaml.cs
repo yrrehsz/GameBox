@@ -6,9 +6,9 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media.Imaging;
 using Microsoft.Win32;
-using GameStartMenu.Library;
+using GameBox.Library;
 
-namespace GameStartMenu.Views
+namespace GameBox.Views
 {
     public partial class LibraryTabView : UserControl
     {

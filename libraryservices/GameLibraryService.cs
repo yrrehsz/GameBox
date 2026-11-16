@@ -6,7 +6,7 @@ using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Threading.Tasks;
 
-namespace GameStartMenu.Library
+namespace GameBox.Library
 {
     /// <summary>
     /// Core service managing the game library: aggregation across platforms, searching,
@@ -464,7 +464,7 @@ namespace GameStartMenu.Library
             OnLibraryUpdated?.Invoke(GetSortedGames());
         }
 
-        /// <summary>Persists whether GameStartMenu should launch automatically at Windows sign-in.</summary>
+        /// <summary>Persists whether GameBox should launch automatically at Windows sign-in.</summary>
         public void UpdateLaunchAtStartupSetting(bool enabled)
         {
             Config.LaunchAtStartup = enabled;

@@ -1,8 +1,8 @@
 using System.Windows;
 using Wpf.Ui.Controls;
-using GameStartMenu.Library;
+using GameBox.Library;
 
-namespace GameStartMenu
+namespace GameBox
 {
     public partial class SettingsWindow : FluentWindow
     {

@@ -7,7 +7,7 @@ using System.Text.Json;
 using System.Threading.Tasks;
 using Microsoft.Win32;
 
-namespace GameStartMenu.Library
+namespace GameBox.Library
 {
     /// <summary>
     /// Handles local and cloud integration for Xbox (Xbox PC local installations, OpenXBL achievements).

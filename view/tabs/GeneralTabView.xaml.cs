@@ -1,10 +1,10 @@
 using System;
 using System.Windows;
 using System.Windows.Controls;
-using GameStartMenu.Library;
-using GameStartMenu.Services;
+using GameBox.Library;
+using GameBox.Services;
 
-namespace GameStartMenu.Views
+namespace GameBox.Views
 {
     public partial class GeneralTabView : UserControl
     {

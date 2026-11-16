@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Text.RegularExpressions;
 
-namespace GameStartMenu.Library
+namespace GameBox.Library
 {
     /// <summary>
     /// Utility class that normalizes game titles into alphanumeric lookup keys

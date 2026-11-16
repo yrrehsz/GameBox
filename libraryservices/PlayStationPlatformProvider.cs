@@ -6,7 +6,7 @@ using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 
-namespace GameStartMenu.Library
+namespace GameBox.Library
 {
     /// <summary>
     /// Handles cloud integration for PlayStation Network (trophy titles, platinum detection, base game progress).

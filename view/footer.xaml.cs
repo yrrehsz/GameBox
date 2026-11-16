@@ -2,7 +2,7 @@ using System;
 using System.Windows;
 using System.Windows.Controls;
 
-namespace GameStartMenu.Views
+namespace GameBox.Views
 {
     public partial class FooterView : UserControl
     {

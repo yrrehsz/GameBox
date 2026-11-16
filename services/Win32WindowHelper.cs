@@ -4,7 +4,7 @@ using System.Windows;
 using System.Windows.Interop;
 using System.Windows.Media;
 
-namespace GameStartMenu.Services
+namespace GameBox.Services
 {
     /// <summary>
     /// Provides Win32 interop helpers for DWM acrylic blur, rounded corners,

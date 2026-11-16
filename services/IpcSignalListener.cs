@@ -2,7 +2,7 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace GameStartMenu.Services
+namespace GameBox.Services
 {
     /// <summary>
     /// Listens on named Win32 <see cref="EventWaitHandle"/> IPC signals for single-instance toggle
@@ -10,8 +10,10 @@ namespace GameStartMenu.Services
     /// </summary>
     internal sealed class IpcSignalListener : IDisposable
     {
-        public const string ToggleSignalName = "GameStartMenu_ToggleSignal";
-        public const string QuitSignalName = "GameStartMenu_QuitSignal";
+        public const string ToggleSignalName = "GameBox_ToggleSignal";
+        public const string QuitSignalName = "GameBox_QuitSignal";
+        public const string LegacyToggleSignalName = "GameStartMenu_ToggleSignal";
+        public const string LegacyQuitSignalName = "GameStartMenu_QuitSignal";
 
         private readonly Action _onToggleRequested;
         private readonly Action _onQuitRequested;
@@ -33,7 +35,9 @@ namespace GameStartMenu.Services
             _started = true;
 
             _ = Task.Run(() => ListenLoop(ToggleSignalName, _onToggleRequested, repeat: true, _disposeCts.Token));
+            _ = Task.Run(() => ListenLoop(LegacyToggleSignalName, _onToggleRequested, repeat: true, _disposeCts.Token));
             _ = Task.Run(() => ListenLoop(QuitSignalName, _onQuitRequested, repeat: false, _disposeCts.Token));
+            _ = Task.Run(() => ListenLoop(LegacyQuitSignalName, _onQuitRequested, repeat: false, _disposeCts.Token));
         }
 
         private static void ListenLoop(string signalName, Action callback, bool repeat, CancellationToken token)

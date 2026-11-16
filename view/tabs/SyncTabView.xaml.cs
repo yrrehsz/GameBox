@@ -1,9 +1,9 @@
 using System;
 using System.Windows;
 using System.Windows.Controls;
-using GameStartMenu.Library;
+using GameBox.Library;
 
-namespace GameStartMenu.Views
+namespace GameBox.Views
 {
     public partial class SyncTabView : UserControl
     {

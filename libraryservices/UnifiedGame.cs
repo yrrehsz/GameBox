@@ -6,7 +6,7 @@ using System.Text.Json.Serialization;
 using System.Windows;
 using System.Windows.Media.Imaging;
 
-namespace GameStartMenu.Library
+namespace GameBox.Library
 {
     /// <summary>
     /// Represents a unified game entry aggregating metadata, executable paths,

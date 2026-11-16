@@ -2,20 +2,20 @@ using System;
 using System.IO;
 using Microsoft.Win32;
 
-namespace GameStartMenu.Services
+namespace GameBox.Services
 {
     /// <summary>
-    /// Manages the per-user Windows Registry Run entry so GameStartMenu starts silently
+    /// Manages the per-user Windows Registry Run entry so GameBox starts silently
     /// in the background when signing in to Windows.
     /// </summary>
     internal static class WindowsStartupService
     {
         private const string RunRegistryKeyPath = @"Software\Microsoft\Windows\CurrentVersion\Run";
-        private const string AppValueName = "GameStartMenu";
+        private const string AppValueName = "GameBox";
         public const string BackgroundLaunchArg = "--background";
 
         /// <summary>
-        /// Resolves the path to the running GameStartMenu executable.
+        /// Resolves the path to the running GameBox executable.
         /// </summary>
         public static string GetExecutablePath()
         {
@@ -27,7 +27,7 @@ namespace GameStartMenu.Services
                 return processPath;
             }
 
-            return Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "GameStartMenu.exe");
+            return Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "GameBox.exe");
         }
 
         /// <summary>
@@ -43,10 +43,18 @@ namespace GameStartMenu.Services
             {
                 string command = $"\"{GetExecutablePath()}\" {BackgroundLaunchArg}";
                 key.SetValue(AppValueName, command, RegistryValueKind.String);
+                key.DeleteValue("GameStartMenu", throwOnMissingValue: false);
             }
-            else if (key.GetValue(AppValueName) != null)
+            else
             {
-                key.DeleteValue(AppValueName, throwOnMissingValue: false);
+                if (key.GetValue(AppValueName) != null)
+                {
+                    key.DeleteValue(AppValueName, throwOnMissingValue: false);
+                }
+                if (key.GetValue("GameStartMenu") != null)
+                {
+                    key.DeleteValue("GameStartMenu", throwOnMissingValue: false);
+                }
             }
         }
 
@@ -56,7 +64,8 @@ namespace GameStartMenu.Services
         public static bool IsStartupEnabled()
         {
             using RegistryKey? key = Registry.CurrentUser.OpenSubKey(RunRegistryKeyPath, writable: false);
-            return key?.GetValue(AppValueName) is string value && !string.IsNullOrWhiteSpace(value);
+            return (key?.GetValue(AppValueName) is string val1 && !string.IsNullOrWhiteSpace(val1)) ||
+                   (key?.GetValue("GameStartMenu") is string val2 && !string.IsNullOrWhiteSpace(val2));
         }
     }
 }

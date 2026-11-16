@@ -6,10 +6,10 @@ using System.Windows.Controls;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
 using System.Windows.Threading;
-using GameStartMenu.Library;
-using GameStartMenu.Services;
+using GameBox.Library;
+using GameBox.Services;
 
-namespace GameStartMenu
+namespace GameBox
 {
     /// <summary>
     /// Popup shell window hosting the header, game library grid, and controller/settings footer.

@@ -3,9 +3,9 @@ using System.IO;
 using System.Windows;
 using System.Windows.Controls;
 using Microsoft.Win32;
-using GameStartMenu.Library;
+using GameBox.Library;
 
-namespace GameStartMenu.Views
+namespace GameBox.Views
 {
     public partial class AddGameTabView : UserControl
     {

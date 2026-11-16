@@ -11,7 +11,7 @@ GameBox is a lightweight, Windows 11-styled start menu launcher designed to unif
 - **Unified Game Library**: Aggregates games from Steam, PlayStation Network, Xbox Network, and standalone PC executables into a single grid.
 - **Gamepad-First Navigation**:
   - Global `Start + Select` shortcut to open and close the launcher from anywhere.
-  - 2D grid navigation using the D-Pad with automatic scrolling.
+  - 2D grid navigation using the D-Pad or Left Analog Stick with automatic scrolling.
   - `A` to launch the primary game executable.
   - `X` to launch a secondary executable or mod engine (e.g. ModEngine, RPCS3, ShadPS4).
   - `Y` for game details and achievements.
@@ -30,7 +30,7 @@ GameBox is a lightweight, Windows 11-styled start menu launcher designed to unif
   - Multi-select platform filters (All, Executables, Steam, PlayStation, Xbox, 100% Completed).
   - Instant title search and sorting by executable availability, alphabetical order, platinum count, or completion percentage.
 - **Taskbar & Startup Integration**:
-  - Companion shim executable (`LauncherGiochi.exe`) stored in AppData to toggle the menu with instant IPC signaling.
+  - Companion shim executable (`GameBox.exe`) stored in AppData to toggle the menu with instant IPC signaling.
   - Optional silent startup with Windows to keep the launcher ready in the background.
 
 ---
@@ -40,7 +40,7 @@ GameBox is a lightweight, Windows 11-styled start menu launcher designed to unif
 | Button / Combination | Action |
 | --- | --- |
 | `Start` + `Select` (Back) | Open or close GameBox overlay |
-| `D-Pad Up` / `Down` / `Left` / `Right` | Navigate game cards in the library grid |
+| `D-Pad` or `Left Stick` (Up / Down / Left / Right) | Navigate game cards in the library grid |
 | `A` | Launch primary game executable |
 | `X` | Launch secondary / modded executable |
 | `Y` | View game info and achievements |
@@ -61,7 +61,7 @@ git clone https://github.com/your-username/GameBox.git
 cd GameBox
 
 # Build the project
-dotnet build GameStartMenu.csproj -c Release
+dotnet build GameBox.csproj -c Release
 ```
 
 The output binaries will be generated in `bin\Release\net8.0-windows\`.
@@ -71,12 +71,12 @@ The output binaries will be generated in `bin\Release\net8.0-windows\`.
 ## Configuration & Storage
 
 User configuration, cloud cache, and companion binaries are stored in:
-`%AppData%\GameStartMenu\`
+`%AppData%\GameBox\`
 
 - `settings.json`: API credentials, view filters, overlay priority, and startup preferences.
 - `library_cache.json`: Cached game catalog, achievement statistics, and metadata.
 - `covers/`: Downloaded local box art images.
-- `LauncherGiochi.exe`: Lightweight taskbar shortcut compiler output.
+- `GameBox.exe`: Lightweight taskbar shortcut compiler output.
 
 ---
 

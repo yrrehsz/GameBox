@@ -8,7 +8,7 @@ using System.Windows.Controls;
 using System.Windows.Media.Imaging;
 using Wpf.Ui.Controls;
 
-namespace GameStartMenu.Views
+namespace GameBox.Views
 {
     /// <summary>
     /// Top header bar containing the game search box, Windows 11-style icon filter checkboxes,

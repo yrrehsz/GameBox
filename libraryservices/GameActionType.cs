@@ -1,4 +1,4 @@
-namespace GameStartMenu.Library
+namespace GameBox.Library
 {
     /// <summary>
     /// Defines whether a game can be launched directly or is displayed as info-only.

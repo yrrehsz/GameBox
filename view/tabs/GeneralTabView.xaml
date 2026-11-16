@@ -1,4 +1,4 @@
-<UserControl x:Class="GameStartMenu.Views.GeneralTabView"
+<UserControl x:Class="GameBox.Views.GeneralTabView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml">
@@ -42,7 +42,7 @@
                     <StackPanel Grid.Column="0" VerticalAlignment="Center" Margin="0,0,16,0">
                         <TextBlock Text="Taskbar Launcher Executable"
                                    Foreground="White" FontWeight="Medium" FontSize="14"/>
-                        <TextBlock Text="Stored alongside your JSON settings in AppData. Windows 11 blocks silent auto-pinning for standalone apps; click Show in Explorer, right-click LauncherGiochi.exe, and choose Pin to taskbar."
+                        <TextBlock Text="Stored alongside your JSON settings in AppData. Windows 11 blocks silent auto-pinning for standalone apps; click Show in Explorer, right-click GameBox.exe, and choose Pin to taskbar."
                                    Foreground="#88FFFFFF" FontSize="11" TextWrapping="Wrap" Margin="0,3,0,0"/>
                         <TextBlock x:Name="TxtLauncherPath"
                                    Foreground="#60CDFF"

@@ -6,7 +6,7 @@ using System.Runtime.InteropServices;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 
-namespace GameStartMenu
+namespace GameBox
 {
     public enum ControllerType
     {
@@ -46,6 +46,7 @@ namespace GameStartMenu
     {
         private const int DPadInitialRepeatDelayMs = 360;
         private const int DPadRepeatIntervalMs = 105;
+        private const int ThumbstickThreshold = 15000;
 
         private const ushort XINPUT_GAMEPAD_DPAD_UP    = 0x0001;
         private const ushort XINPUT_GAMEPAD_DPAD_DOWN  = 0x0002;
@@ -416,6 +417,30 @@ namespace GameStartMenu
                     {
                         anySlotConnected = true;
                         ushort buttons = state.Gamepad.wButtons;
+
+                        // Synthesize directional navigation from analog thumbsticks (left stick, falling back to right stick)
+                        int thumbX = state.Gamepad.sThumbLX;
+                        int thumbY = state.Gamepad.sThumbLY;
+                        if (Math.Abs(thumbX) < ThumbstickThreshold && Math.Abs(thumbY) < ThumbstickThreshold)
+                        {
+                            thumbX = state.Gamepad.sThumbRX;
+                            thumbY = state.Gamepad.sThumbRY;
+                        }
+
+                        int absX = Math.Abs(thumbX);
+                        int absY = Math.Abs(thumbY);
+                        if (absX >= ThumbstickThreshold || absY >= ThumbstickThreshold)
+                        {
+                            if (absX >= absY)
+                            {
+                                buttons |= (ushort)(thumbX > 0 ? XINPUT_GAMEPAD_DPAD_RIGHT : XINPUT_GAMEPAD_DPAD_LEFT);
+                            }
+                            else
+                            {
+                                buttons |= (ushort)(thumbY > 0 ? XINPUT_GAMEPAD_DPAD_UP : XINPUT_GAMEPAD_DPAD_DOWN);
+                            }
+                        }
+
                         combinedButtons |= buttons;
 
                         // Option A: Start + Select held simultaneously

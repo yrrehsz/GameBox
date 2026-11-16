@@ -1,4 +1,4 @@
-namespace GameStartMenu.Library
+namespace GameBox.Library
 {
     /// <summary>
     /// Tracks achievements/trophy progress for a game on a specific gaming platform.

@@ -4,9 +4,9 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
-using GameStartMenu.Library;
+using GameBox.Library;
 
-namespace GameStartMenu.Views
+namespace GameBox.Views
 {
     public partial class GameCardView : UserControl
     {

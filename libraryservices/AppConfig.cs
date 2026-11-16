@@ -3,10 +3,10 @@ using System.Collections.Generic;
 using System.IO;
 using System.Text.Json;
 
-namespace GameStartMenu.Library
+namespace GameBox.Library
 {
     /// <summary>
-    /// Application settings and cloud credentials, persisted in %AppData%\GameStartMenu\settings.json.
+    /// Application settings and cloud credentials, persisted in %AppData%\GameBox\settings.json.
     /// </summary>
     public class AppConfig
     {
@@ -65,7 +65,7 @@ namespace GameStartMenu.Library
         // =====================================================================
 
         /// <summary>
-        /// Automatically starts GameStartMenu in the background on Windows sign-in.
+        /// Automatically starts GameBox in the background on Windows sign-in.
         /// </summary>
         public bool LaunchAtStartup { get; set; } = true;
 
@@ -73,8 +73,48 @@ namespace GameStartMenu.Library
         // Storage Paths
         // =====================================================================
 
-        public static string AppDataFolder =>
-            Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "GameStartMenu");
+        public static string AppDataFolder
+        {
+            get
+            {
+                MigrateLegacyAppDataFolderIfNeeded();
+                return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "GameBox");
+            }
+        }
+
+        private static bool _migrated = false;
+        private static void MigrateLegacyAppDataFolderIfNeeded()
+        {
+            if (_migrated) return;
+            _migrated = true;
+            try
+            {
+                string newFolder = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "GameBox");
+                string oldFolder = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "GameStartMenu");
+
+                if (!Directory.Exists(newFolder) && Directory.Exists(oldFolder))
+                {
+                    Directory.CreateDirectory(newFolder);
+                    foreach (string file in Directory.GetFiles(oldFolder))
+                    {
+                        string dest = Path.Combine(newFolder, Path.GetFileName(file));
+                        if (!File.Exists(dest)) File.Copy(file, dest, true);
+                    }
+                    string oldCovers = Path.Combine(oldFolder, "covers");
+                    string newCovers = Path.Combine(newFolder, "covers");
+                    if (Directory.Exists(oldCovers) && !Directory.Exists(newCovers))
+                    {
+                        Directory.CreateDirectory(newCovers);
+                        foreach (string file in Directory.GetFiles(oldCovers))
+                        {
+                            string dest = Path.Combine(newCovers, Path.GetFileName(file));
+                            if (!File.Exists(dest)) File.Copy(file, dest, true);
+                        }
+                    }
+                }
+            }
+            catch { }
+        }
 
         public static string ConfigFilePath => Path.Combine(AppDataFolder, "settings.json");
         public static string CacheFilePath => Path.Combine(AppDataFolder, "library_cache.json");
@@ -104,7 +144,7 @@ namespace GameStartMenu.Library
         }
 
         /// <summary>
-        /// Persists current settings to %AppData%\GameStartMenu\settings.json with indented formatting.
+        /// Persists current settings to %AppData%\GameBox\settings.json with indented formatting.
         /// </summary>
         public void Save()
         {

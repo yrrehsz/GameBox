@@ -2,9 +2,9 @@ using System;
 using System.Linq;
 using System.Threading;
 using System.Windows;
-using GameStartMenu.Services;
+using GameBox.Services;
 
-namespace GameStartMenu
+namespace GameBox
 {
     public partial class App : Application
     {
@@ -29,8 +29,13 @@ namespace GameStartMenu
                 quitSignal.Set();
                 Thread.Sleep(200);
             }
+            if (EventWaitHandle.TryOpenExisting(IpcSignalListener.LegacyQuitSignalName, out var oldQuitSignal))
+            {
+                oldQuitSignal.Set();
+                Thread.Sleep(200);
+            }
 
-            _mutex = new Mutex(true, "GameStartMenu_SingleInstanceMutex", out _);
+            _mutex = new Mutex(true, "GameBox_SingleInstanceMutex", out _);
 
             base.OnStartup(e);
 
