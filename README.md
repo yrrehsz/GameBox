@@ -1,6 +1,6 @@
 # GameBox
 
-GameBox is a lightweight, Windows 11-styled start menu launcher designed to unify your PC and console gaming libraries in one clean, gamepad-friendly overlay. It brings together local executables, Steam, PlayStation Network, and Xbox Network titles with achievement badges, cover artwork, and full controller navigation.
+GameBox is a lightweight launcher that behaves like the Windows Start menu. It is non-intrusive, disappears on demand, and features a clean Windows-style design. You can navigate and launch your games using a mouse or a controller.
 
 ![demo](./assets/demo/demo.gif)
 
@@ -8,30 +8,16 @@ GameBox is a lightweight, Windows 11-styled start menu launcher designed to unif
 
 ## Features
 
-- **Unified Game Library**: Aggregates games from Steam, PlayStation Network, Xbox Network, and standalone PC executables into a single grid.
+- **Lightweight & Clean**: Works just like the Windows Start menu, staying out of your way until you need it.
 - **Gamepad-First Navigation**:
-  - Global `Start + Select` shortcut to open and close the launcher from anywhere.
-  - 2D grid navigation using the D-Pad or Left Analog Stick with automatic scrolling.
-  - `A` to launch the primary game executable.
-  - `X` to launch a secondary executable or mod engine (e.g. ModEngine, RPCS3, ShadPS4).
-  - `Y` for game details and achievements.
-  - `B` to dismiss the menu.
-  - Contextual `A`, `X`, and `Y` badge indicators dynamically displayed above game cards only when a controller is connected.
-- **Windows 11 Fluent Interface**:
-  - Native hardware-accelerated DWM acrylic blur and rounded corners.
-  - Smooth slide and fade open/close animations.
-  - Dynamic cover sheen reflection that tracks cursor movement.
-  - Dark mode aesthetic matching modern Windows design language.
-- **Achievement & Completion Overlays**:
-  - Showcases 100% completion badges: PlayStation Platinum, Xbox Mythic, and Steam 100% Ribbon.
-  - Configurable overlay priority when a title is completed across multiple platforms.
-  - Platform rank icons and progress percentages below game covers.
-- **Filter & Search**:
-  - Multi-select platform filters (All, Executables, Steam, PlayStation, Xbox, 100% Completed).
-  - Instant title search and sorting by executable availability, alphabetical order, platinum count, or completion percentage.
-- **Taskbar & Startup Integration**:
-  - Companion shim executable (`GameBox.exe`) stored in AppData to toggle the menu with instant IPC signaling.
-  - Optional silent startup with Windows to keep the launcher ready in the background.
+  - Open and close the launcher from anywhere using `Start + Select`.
+  - Navigate the game grid using the D-Pad or Left Analog Stick.
+  - `A` to launch the primary game.
+  - `X` to launch the secondary/modded executable.
+  - `Y` for game info and achievements.
+  - `B` to hide the application.
+  - Badge indicators (`A`, `X`, `Y`) appear above the action buttons only when a controller is connected.
+- **Windows 11 Fluent Design**: Acrylic blur, rounded corners, and dark mode.
 
 ---
 
@@ -39,62 +25,40 @@ GameBox is a lightweight, Windows 11-styled start menu launcher designed to unif
 
 | Button / Combination | Action |
 | --- | --- |
-| `Start` + `Select` (Back) | Open or close GameBox overlay |
-| `D-Pad` or `Left Stick` (Up / Down / Left / Right) | Navigate game cards in the library grid |
-| `A` | Launch primary game executable |
-| `X` | Launch secondary / modded executable |
-| `Y` | View game info and achievements |
-| `B` | Close GameBox overlay |
+| `Start` + `Select` (Back) | Open or close GameBox |
+| `D-Pad` or `Left/Right Stick` | Navigate library grid |
+| `A` | Launch game |
+| `X` | Launch secondary executable |
+| `Y` | View game info |
+| `B` | Hide application |
 
 ---
 
-## Requirements & Building
+## Planned Features
 
-- **Operating System**: Windows 10 (version 1903 or later) or Windows 11 (recommended)
-- **Runtime / SDK**: .NET 8.0 SDK (Windows Desktop workload)
-
-### Build from source:
-
-```powershell
-# Clone the repository
-git clone https://github.com/your-username/GameBox.git
-cd GameBox
-
-# Build the project
-dotnet build GameBox.csproj -c Release
-```
-
-The output binaries will be generated in `bin\Release\net8.0-windows\`.
+- **Game Info Window**: Add a dedicated info and achievement view when pressing `Y`.
+- **Controller Vibration & Power Off**: Add features to vibrate or turn off connected controllers from the UI (the main challenge is finding a reliable unique ID for every controller).
+- **More Storefronts**: Add support for Epic Games Store and other digital stores.
+- **Light Theme**: Add a light mode option for the UI.
 
 ---
 
-## Configuration & Storage
+## Known Issues and Bugs
 
-User configuration, cloud cache, and companion binaries are stored in:
-`%AppData%\GameBox\`
-
-- `settings.json`: API credentials, view filters, overlay priority, and startup preferences.
-- `library_cache.json`: Cached game catalog, achievement statistics, and metadata.
-- `covers/`: Downloaded local box art images.
-- `GameBox.exe`: Lightweight taskbar shortcut compiler output.
+- **Taskbar Pinning**: Pinning the companion executable to the taskbar cannot happen automatically and must be done manually.
+- **Filter Bug**: If a filter is applied in the settings, only the filtered games are shown even if the UI text suggests all games are displayed.
+- **Settings Tabs**: Some settings tabs are currently empty or disabled (for example, choosing specific controller types or overlays cannot be changed yet).
+- **Second Monitor**: If the app is opened on a second monitor, it will be shown on the main monitor.
 
 ---
 
-## To-Do
+## AI Usage Disclosure and Credits
 
-- [ ] Complete the dedicated Game Info and Achievement breakdown detail view triggered by `Y` / Info button.
-- [ ] Expand controller settings tab to support custom controller icon themes (if I manage to get an unique ID for any controller)
-- [ ] Add ability to turn off any connected controller. 
-- [ ] Add integration for additional digital storefronts (Epic Games Store, GOG Galaxy, EA App, Ubisoft Connect).
-- [ ] Implement playtime tracking and recently played session history for non-store executables.
-- [ ] Add localization support (multi-language UI selection).
-- [ ] 
+AI was used to help write the code for this project, but everything has been personally reviewed and tested. Generative AI was never used for images or graphical assets. 
 
----
-
-## Known Issues
-
-- **Windows 11 Taskbar Auto-Pin Limitation**: Due to security policies introduced in recent Windows 11 updates, third-party unpackaged desktop applications cannot programmatically pin shortcuts to the taskbar without user interaction. To pin the launcher, use the "Show in Explorer" option in Settings or Footer, right-click `GameBox.exe`, and select *Pin to taskbar*.
-- **PSN NPSSO Token Expiration**: PlayStation Network NPSSO tokens expire periodically on Sony's authentication servers and must be refreshed manually in Settings > Sync if trophy synchronization stops updating.
-- **DirectInput / Non-XInput Controllers**: Gamepad shortcuts and navigation rely on the XInput API. Generic DirectInput controllers require an XInput wrapper or emulator (such as DS4Windows or Steam Input) to be detected.
-- I'm sure there are a lot of bugs, but I haven't found them yet.
+**Credits for assets used in GameBox:**
+- **Xbox Achievement Icons**: Xbox
+- **PlayStation Trophy Icons**: PlayStation
+- **Steam Award Icons**: Steam *(Note: Neither the current icons nor the official Steam ones look quite right, so I am looking for better ones that match the overall style. If anyone wants to help with the graphics, any contribution is welcome!)*
+- **Controller Icons**: icons8
+- **Game Covers**: Steam and SteamGridDB
