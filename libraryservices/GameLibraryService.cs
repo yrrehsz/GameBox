@@ -170,9 +170,49 @@ namespace GameBox.Library
             var installedXboxIds = PlatformProviders.SyncXboxLocal(_library);
             PlatformProviders.CleanupUninstalledGames(_library, installedSteamIds, installedXboxIds);
 
+            SyncThirdPartyLocal();
+
             PurgeHiddenGames();
             SaveCache();
             OnLibraryUpdated?.Invoke(GetSortedGames());
+        }
+
+        /// <summary>
+        /// Scans Epic Games, Ubisoft Connect, and Battle.net for locally installed games
+        /// and merges them into the library without overwriting existing entries.
+        /// </summary>
+        private void SyncThirdPartyLocal()
+        {
+            MergeGames(EpicGamesPlatformProvider.GetInstalledGames());
+            MergeGames(UbisoftPlatformProvider.GetInstalledGames());
+            MergeGames(BattleNetPlatformProvider.GetInstalledGames());
+        }
+
+        /// <summary>
+        /// Adds detected games to the library. Existing entries are updated only when
+        /// their ActionType was DisplayOnly (i.e. the game was previously uninstalled).
+        /// </summary>
+        private void MergeGames(List<UnifiedGame> detected)
+        {
+            foreach (UnifiedGame game in detected)
+            {
+                if (Config.HiddenGames.Contains(game.NormalizedId))
+                    continue;
+
+                if (_library.TryGetValue(game.NormalizedId, out UnifiedGame? existing))
+                {
+                    // Re-enable launch if the game was previously uninstalled.
+                    if (existing.ActionType == GameActionType.DisplayOnly)
+                    {
+                        existing.ActionType = GameActionType.Executable;
+                        existing.LaunchCommand = game.LaunchCommand;
+                    }
+                }
+                else
+                {
+                    _library[game.NormalizedId] = game;
+                }
+            }
         }
 
         private void PurgeHiddenGames()
@@ -220,6 +260,7 @@ namespace GameBox.Library
                 var installedXboxIds = PlatformProviders.SyncXboxLocal(_library);
                 PlatformProviders.CleanupUninstalledGames(_library, installedSteamIds, installedXboxIds);
 
+                SyncThirdPartyLocal();
                 PurgeHiddenGames();
 
                 await Task.WhenAll(

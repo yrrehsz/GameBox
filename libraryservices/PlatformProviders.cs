@@ -8,7 +8,8 @@ namespace GameBox.Library
 {
     /// <summary>
     /// Facade coordinating local and cloud synchronizations across gaming platforms
-    /// (Steam, PlayStation Network, Xbox Live) and performing post-sync cleanups.
+    /// (Steam, PlayStation Network, Xbox Live, Epic Games, Ubisoft Connect, Battle.net)
+    /// and performing post-sync cleanups.
     /// </summary>
     public static class PlatformProviders
     {
