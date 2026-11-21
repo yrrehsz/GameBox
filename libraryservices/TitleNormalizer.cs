@@ -61,6 +61,7 @@ namespace GameBox.Library
                 .Replace("‘", "'");
 
             title = Regex.Replace(title, @"^COD\s*:\s*", "Call of Duty: ", RegexOptions.IgnoreCase);
+            title = Regex.Replace(title, @"^Call of Duty\s+(?!:)", "Call of Duty: ", RegexOptions.IgnoreCase);
 
             foreach (var pattern in SuffixesToRemove)
             {

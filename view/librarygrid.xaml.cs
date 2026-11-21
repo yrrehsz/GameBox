@@ -288,15 +288,23 @@ namespace GameBox.Views
         private void Card_MouseMove(object sender, MouseEventArgs e)
         {
             Point pos = e.GetPosition(this);
-            bool mouseActuallyMoved = _lastMousePosition.X >= 0 &&
-                                      (Math.Abs(pos.X - _lastMousePosition.X) > 2 ||
-                                       Math.Abs(pos.Y - _lastMousePosition.Y) > 2);
-
-            _lastMousePosition = pos;
-
-            if (mouseActuallyMoved && _selectedIndex >= 0)
+            if (_lastMousePosition.X < 0)
             {
-                ClearSelection();
+                _lastMousePosition = pos;
+                return;
+            }
+
+            bool mouseActuallyMoved = Math.Abs(pos.X - _lastMousePosition.X) > 2 ||
+                                      Math.Abs(pos.Y - _lastMousePosition.Y) > 2;
+
+            if (mouseActuallyMoved)
+            {
+                _lastMousePosition = pos;
+
+                if (_selectedIndex >= 0)
+                {
+                    ClearSelection();
+                }
             }
         }
 

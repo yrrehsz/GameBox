@@ -120,8 +120,6 @@ namespace GameBox
             FooterView.BtnPinTaskbar.Click += BtnPinTaskbar_Click;
             FooterView.BtnSettings.Click += BtnSettings_Click;
             FooterView.BtnClose.Click += BtnClose_Click;
-            FooterView.OnIdentifyRequested += async ctrl => await _controllerDetector.IdentifyControllerAsync(ctrl);
-            FooterView.OnTurnOffRequested += ctrl => _controllerDetector.TurnOffController(ctrl);
         }
 
         #endregion

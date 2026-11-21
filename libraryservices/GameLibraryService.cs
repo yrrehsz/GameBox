@@ -143,20 +143,28 @@ namespace GameBox.Library
                     {
                         _library.Clear();
                         foreach (var g in cachedList)
+                        {
+                            if (System.Text.RegularExpressions.Regex.IsMatch(g.NormalizedId, @"^appid\d+$"))
+                                continue;
+
                             _library[g.NormalizedId] = g;
+                        }
                     }
                 }
             }
             catch { }
 
-            // Restore ActionType for any game that has a local launch command configured
+            // Restore ActionType for any game that has a local launch command configured.
+            // Only flip IsCustomGame for entries that were already marked as custom in the cache;
+            // third-party provider games (Epic, Ubisoft, Battle.net) have IsCustomGame = false
+            // and must not be promoted here, otherwise DeleteGame cannot add them to HiddenGames.
             foreach (var g in _library.Values)
             {
                 if (!string.IsNullOrEmpty(g.LaunchCommand))
                 {
-                    if (!g.LaunchCommand.StartsWith("steam://", StringComparison.OrdinalIgnoreCase))
+                    if (g.IsCustomGame &&
+                        !g.LaunchCommand.StartsWith("steam://", StringComparison.OrdinalIgnoreCase))
                     {
-                        g.IsCustomGame = true;
                         g.ActionType = GameActionType.Executable;
                     }
                 }

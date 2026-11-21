@@ -6,7 +6,8 @@
     <ScrollViewer VerticalScrollBarVisibility="Auto"
                   HorizontalScrollBarVisibility="Disabled"
                   Margin="14,6,6,6"
-                  Padding="0,0,8,0">
+                  Padding="0,0,8,0"
+                  MouseMove="Card_MouseMove">
         <ItemsControl x:Name="GamesGridControl">
             <ItemsControl.ItemsPanel>
                 <ItemsPanelTemplate>

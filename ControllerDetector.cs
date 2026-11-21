@@ -34,7 +34,6 @@ namespace GameBox
         public string UniqueId { get; set; } = "";
         public int PlayerIndex { get; set; }
         public uint XInputSlot { get; set; } = 0;
-        public ulong BluetoothAddress { get; set; } = 0;
         public ControllerType Type { get; set; } = ControllerType.None;
         public string Name { get; set; } = "";
         public string DeviceId { get; set; } = "";
@@ -103,62 +102,15 @@ namespace GameBox
         [DllImport("xinput1_4.dll", EntryPoint = "#100")]
         private static extern uint XInputGetStateEx(uint dwUserIndex, out XINPUT_STATE pState);
 
-        // --- P/INVOKE XINPUT ---
-        [StructLayout(LayoutKind.Sequential)]
-        private struct XINPUT_VIBRATION
-        {
-            public ushort wLeftMotorSpeed;
-            public ushort wRightMotorSpeed;
-        }
-
         [StructLayout(LayoutKind.Sequential)]
         private struct XINPUT_STATE
         {
             public uint dwPacketNumber;
             public XINPUT_GAMEPAD Gamepad;
-            
         }
 
         [DllImport("xinput1_4.dll", EntryPoint = "XInputGetState")]
         private static extern uint XInputGetState(uint dwUserIndex, out XINPUT_STATE pState);
-
-        [DllImport("xinput1_4.dll", EntryPoint = "XInputSetState")]
-        private static extern uint XInputSetState(uint dwUserIndex, ref XINPUT_VIBRATION pVibration);
-
-        [DllImport("xinput1_4.dll", EntryPoint = "#103")]
-        private static extern uint XInputPowerOffController(uint dwUserIndex);
-
-        // --- P/INVOKE BLUETOOTH ---
-        private static readonly Guid HID_SERVICE_GUID = new Guid("00001124-0000-1000-8000-00805f9b34fb");
-        private const uint BLUETOOTH_SERVICE_DISABLE = 0x00;
-        private const uint BLUETOOTH_SERVICE_ENABLE = 0x01;
-
-        [StructLayout(LayoutKind.Sequential)]
-        private struct SYSTEMTIME
-        {
-            public ushort Year, Month, DayOfWeek, Day, Hour, Minute, Second, Milliseconds;
-        }
-
-        [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
-        private struct BLUETOOTH_DEVICE_INFO
-        {
-            public int dwSize;
-            public ulong Address;
-            public uint ulClassofDevice;
-            [MarshalAs(UnmanagedType.Bool)] public bool fConnected;
-            [MarshalAs(UnmanagedType.Bool)] public bool fRemembered;
-            [MarshalAs(UnmanagedType.Bool)] public bool fAuthenticated;
-            public SYSTEMTIME stLastSeen;
-            public SYSTEMTIME stLastUsed;
-            [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 248)]
-            public string szName;
-        }
-
-        [DllImport("BluetoothAPIs.dll", SetLastError = true, CharSet = CharSet.Unicode)]
-        private static extern int BluetoothGetDeviceInfo(IntPtr hRadio, ref BLUETOOTH_DEVICE_INFO pbtdi);
-
-        [DllImport("BluetoothAPIs.dll", SetLastError = true, CharSet = CharSet.Unicode)]
-        private static extern int BluetoothSetServiceState(IntPtr hRadio, ref BLUETOOTH_DEVICE_INFO pbtdi, ref Guid pGuidService, uint dwServiceFlags);
 
         public ControllerDetector(Dictionary<string, string>? customIcons = null)
         {
@@ -198,74 +150,6 @@ namespace GameBox
             }
         }
 
-        // 1. VIBRAZIONE SUL CONTROLLER SELEZIONATO
-        public async Task IdentifyControllerAsync(ControllerInfo controller)
-        {
-            uint slot = controller.XInputSlot;
-
-            var zero = new XINPUT_VIBRATION { wLeftMotorSpeed = 0, wRightMotorSpeed = 0 };
-            var heavyPulse = new XINPUT_VIBRATION { wLeftMotorSpeed = 55000, wRightMotorSpeed = 30000 };
-            var lightPulse = new XINPUT_VIBRATION { wLeftMotorSpeed = 25000, wRightMotorSpeed = 60000 };
-
-            try
-            {
-                XInputGetState(slot, out _);
-                XInputSetState(slot, ref zero);
-                await Task.Delay(25);
-
-                XInputGetState(slot, out _);
-                XInputSetState(slot, ref heavyPulse);
-                await Task.Delay(180);
-
-                XInputSetState(slot, ref zero);
-                await Task.Delay(90);
-
-                XInputGetState(slot, out _);
-                XInputSetState(slot, ref lightPulse);
-                await Task.Delay(200);
-
-                XInputGetState(slot, out _);
-                XInputSetState(slot, ref zero);
-            }
-            catch { }
-        }
-
-        // 2. SPEGNIMENTO DEL CONTROLLER SELEZIONATO
-        public void TurnOffController(ControllerInfo controller)
-        {
-            Task.Run(async () =>
-            {
-                // A) Spegne via XInput (#103) lo specifico slot
-                try
-                {
-                    XInputPowerOffController(controller.XInputSlot);
-                }
-                catch { }
-
-                // B) Se è collegato via Bluetooth e abbiamo il suo indirizzo MAC, disconnette solo lui
-                if (controller.BluetoothAddress != 0)
-                {
-                    try
-                    {
-                        var btInfo = new BLUETOOTH_DEVICE_INFO
-                        {
-                            dwSize = Marshal.SizeOf<BLUETOOTH_DEVICE_INFO>(),
-                            Address = controller.BluetoothAddress
-                        };
-
-                        if (BluetoothGetDeviceInfo(IntPtr.Zero, ref btInfo) == 0 && btInfo.fConnected)
-                        {
-                            Guid hidGuid = HID_SERVICE_GUID;
-                            BluetoothSetServiceState(IntPtr.Zero, ref btInfo, ref hidGuid, BLUETOOTH_SERVICE_DISABLE);
-                            await Task.Delay(1200);
-                            BluetoothSetServiceState(IntPtr.Zero, ref btInfo, ref hidGuid, BLUETOOTH_SERVICE_ENABLE);
-                        }
-                    }
-                    catch { }
-                }
-            });
-        }
-
         public List<ControllerInfo> DetectConnectedControllers()
         {
             var rawList = new List<ControllerInfo>();
@@ -303,7 +187,6 @@ namespace GameBox
                         continue;
 
                     ControllerInfo? info = null;
-                    ulong btMac = ExtractBluetoothMac(devId);
 
                     // Legge eventuale slot XInput esplicito (IG_00 -> 0, IG_01 -> 1...)
                     uint? explicitSlot = null;
@@ -320,7 +203,6 @@ namespace GameBox
                             Type = ControllerType.PlayStation,
                             Name = devId.Contains("0CE6") || devId.Contains("0DF2") ? "DualSense" : "DualShock",
                             DeviceId = rawDevId,
-                            BluetoothAddress = btMac,
                             XInputSlot = explicitSlot ?? 99,
                             BadgeColor = "#440070D1",
                             IconImageSource = "pack://application:,,,/assets/controllers/fluent/ps5.png"
@@ -335,7 +217,6 @@ namespace GameBox
                             Type = ControllerType.Nintendo,
                             Name = "Switch",
                             DeviceId = rawDevId,
-                            BluetoothAddress = btMac,
                             XInputSlot = explicitSlot ?? 99,
                             BadgeColor = "#44E60012",
                             IconImageSource = "pack://application:,,,/assets/controllers/fluent/procontroller.png"
@@ -350,7 +231,6 @@ namespace GameBox
                             Type = ControllerType.Xbox,
                             Name = "Xbox Controller",
                             DeviceId = rawDevId,
-                            BluetoothAddress = btMac,
                             XInputSlot = explicitSlot ?? 99,
                             BadgeColor = "#44107C10",
                             IconImageSource = "pack://application:,,,/assets/controllers/fluent/xbox.png"
@@ -524,16 +404,6 @@ namespace GameBox
                     OnButtonPressed?.Invoke(button);
                 }
             }
-        }
-
-        private static ulong ExtractBluetoothMac(string devId)
-        {
-            var match = Regex.Match(devId, @"([0-9A-F]{12})(?:&|_|\b)");
-            if (match.Success && ulong.TryParse(match.Groups[1].Value, System.Globalization.NumberStyles.HexNumber, null, out ulong mac) && mac != 0)
-            {
-                return mac;
-            }
-            return 0;
         }
     }
 }

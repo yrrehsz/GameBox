@@ -61,9 +61,31 @@ namespace GameBox.Library
                     string content = File.ReadAllText(acfFile);
                     string appId = Regex.Match(content, "\"appid\"\\s+\"(\\d+)\"").Groups[1].Value;
                     string name = Regex.Match(content, "\"name\"\\s+\"([^\"]+)\"").Groups[1].Value;
+                    string installDir = Regex.Match(content, "\"installdir\"\\s+\"([^\"]+)\"").Groups[1].Value;
 
                     if (IgnoredSteamIds.Contains(appId)) continue;
                     installedAppIds.Add(appId);
+
+                    // When Steam records a placeholder name like "appid_311210" (e.g. Call of Duty: Black Ops III),
+                    // resolve the real title from an existing library entry or from the installdir.
+                    if (string.IsNullOrWhiteSpace(name) || name.StartsWith("appid_", StringComparison.OrdinalIgnoreCase))
+                    {
+                        var existingByAppId = library.Values.FirstOrDefault(g =>
+                            (g.Platforms.TryGetValue("Steam", out var sp) && sp.ExtraInfo == appId) ||
+                            (g.LaunchCommand != null && g.LaunchCommand.EndsWith($"/{appId}")));
+
+                        if (existingByAppId != null && !string.IsNullOrWhiteSpace(existingByAppId.DisplayTitle))
+                        {
+                            name = existingByAppId.DisplayTitle;
+                        }
+                        else if (!string.IsNullOrWhiteSpace(installDir))
+                        {
+                            name = installDir;
+                        }
+                    }
+
+                    // Remove any stale placeholder entry (e.g. "appid311210")
+                    library.Remove($"appid{appId}");
 
                     var game = PlatformProviders.GetOrCreate(library, name);
                     game.ActionType = GameActionType.Executable;
@@ -145,6 +167,13 @@ namespace GameBox.Library
                         var game = PlatformProviders.GetOrCreate(library, item.name);
                         if (string.IsNullOrEmpty(game.CoverUrl))
                             game.CoverUrl = $"https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/{item.appId}/library_600x900.jpg";
+
+                        if (item.isInstalled)
+                        {
+                            game.ActionType = GameActionType.Executable;
+                            if (string.IsNullOrEmpty(game.LaunchCommand))
+                                game.LaunchCommand = $"steam://rungameid/{item.appId}";
+                        }
 
                         int pct = total > 0 ? (int)Math.Round((double)unlocked / total * 100) : 0;
                         game.Platforms["Steam"] = new PlatformCompletion

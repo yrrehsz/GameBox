@@ -6,7 +6,7 @@
 
     <!-- =========================================================
          Shared controller button badge (A / X / Y) shown above card action buttons
-         only while a controller is connected.
+         only when navigating via controller (hidden during mouse navigation).
     ========================================================= -->
     <Style x:Key="GamepadBadgeStyle" TargetType="ContentControl">
         <Setter Property="Width" Value="18"/>
@@ -14,7 +14,7 @@
         <Setter Property="HorizontalAlignment" Value="Center"/>
         <Setter Property="IsHitTestVisible" Value="False"/>
         <Setter Property="Visibility"
-                Value="{Binding IsControllerConnected, RelativeSource={RelativeSource AncestorType=views:LibraryGridView}, Converter={StaticResource BoolToVis}, FallbackValue=Collapsed}"/>
+                Value="{Binding IsControllerSelected, RelativeSource={RelativeSource AncestorType=views:GameCardView}, Converter={StaticResource BoolToVis}, FallbackValue=Collapsed}"/>
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="ContentControl">

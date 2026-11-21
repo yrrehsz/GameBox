@@ -13,6 +13,18 @@ namespace GameBox.Library
             @"SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall";
 
         /// <summary>
+        /// Display names of Blizzard registry entries that represent the launcher or tools,
+        /// not actual games, and must be excluded from the library.
+        /// </summary>
+        private static readonly HashSet<string> LauncherEntries = new(StringComparer.OrdinalIgnoreCase)
+        {
+            "Battle.net",
+            "Battle.net App",
+            "Battle.net Update Agent",
+            "Blizzard Battle.net",
+        };
+
+        /// <summary>
         /// Maps known Blizzard game display names to their Battle.net protocol product codes.
         /// </summary>
         private static readonly Dictionary<string, string> ProductCodes =
@@ -80,6 +92,10 @@ namespace GameBox.Library
                 return null;
 
             displayName = displayName.Trim();
+
+            // Exclude the launcher itself and other Blizzard tools.
+            if (LauncherEntries.Contains(displayName))
+                return null;
 
             string launchCommand = ResolvelaunchCommand(displayName);
 
